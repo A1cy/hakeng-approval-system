@@ -92,7 +92,8 @@ Set `DATABASE_URL` in `.env` (copy from `.env.example`) to any PostgreSQL instan
 
 ```
 DATABASE_URL="postgresql://user:password@host:5432/hakeng?schema=public"
-# Optional, only to test live PDF upload:
+# Not needed locally — PDF uploads fall back to the local filesystem when this is
+# unset. Only used in production (Vercel) to store uploads in Vercel Blob.
 # BLOB_READ_WRITE_TOKEN="vercel_blob_rw_..."
 ```
 
