@@ -3,19 +3,14 @@
 import { useCallback, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { motion } from 'motion/react'
 
-interface User {
-  id: string
-  name: string
-  email: string
-  department: string
-}
+interface User { id: string; name: string; email: string; department: string }
+interface Approver { approverName: string; approverEmail: string; role: string }
 
-interface Approver {
-  approverName: string
-  approverEmail: string
-  role: string
-}
+const inputCls =
+  'w-full rounded-lg border border-input bg-background/60 px-3 py-2 text-sm text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:ring-2 focus:ring-ring/40'
+const labelCls = 'mb-1.5 block text-xs font-medium uppercase tracking-wide text-muted-foreground'
 
 export default function NewRequestPage() {
   const router = useRouter()
@@ -24,40 +19,24 @@ export default function NewRequestPage() {
   const [uploadingFile, setUploadingFile] = useState(false)
 
   const [formData, setFormData] = useState({
-    title: '',
-    requestType: 'Internal Approval',
-    requestedById: '',
-    department: '',
-    priority: 'Medium',
-    dueDate: '',
-    externalPartyName: '',
-    externalPartyContact: '',
-    pdfPath: '',
-    remarks: '',
+    title: '', requestType: 'Internal Approval', requestedById: '', department: '',
+    priority: 'Medium', dueDate: '', externalPartyName: '', externalPartyContact: '',
+    pdfPath: '', remarks: '',
   })
-
   const [approvers, setApprovers] = useState<Approver[]>([])
-  const [newApprover, setNewApprover] = useState({
-    approverName: '',
-    approverEmail: '',
-    role: 'Reviewer',
-  })
+  const [newApprover, setNewApprover] = useState({ approverName: '', approverEmail: '', role: 'Reviewer' })
 
-  // Declared before the effect that uses it; memoised so the dependency list is honest.
   const fetchUsers = useCallback(async () => {
     try {
       const response = await fetch('/api/users')
       const data = await response.json()
-      if (data.success) {
-        setUsers(data.data)
-      }
+      if (data.success) setUsers(data.data)
     } catch (error) {
       console.error('Error fetching users:', error)
     }
   }, [])
 
   useEffect(() => {
-    // Fetch-on-mount: state is set post-await inside fetchUsers, not synchronously.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchUsers()
   }, [fetchUsers])
@@ -68,43 +47,22 @@ export default function NewRequestPage() {
   }
 
   const handleUserChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const userId = e.target.value
-    const user = users.find((u) => u.id === userId)
-    if (user) {
-      setFormData((prev) => ({
-        ...prev,
-        requestedById: userId,
-        department: user.department,
-      }))
-    }
+    const user = users.find((u) => u.id === e.target.value)
+    if (user) setFormData((prev) => ({ ...prev, requestedById: user.id, department: user.department }))
   }
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-
-    if (!file.name.toLowerCase().endsWith('.pdf')) {
-      alert('Only PDF files are allowed')
-      return
-    }
-
+    if (!file.name.toLowerCase().endsWith('.pdf')) { alert('Only PDF files are allowed'); return }
     try {
       setUploadingFile(true)
-      const formData = new FormData()
-      formData.append('file', file)
-
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      })
-
+      const fd = new FormData()
+      fd.append('file', file)
+      const response = await fetch('/api/upload', { method: 'POST', body: fd })
       const data = await response.json()
-      if (data.success) {
-        setFormData((prev) => ({ ...prev, pdfPath: data.data.path }))
-        alert('File uploaded successfully!')
-      } else {
-        alert('File upload failed: ' + data.error)
-      }
+      if (data.success) setFormData((prev) => ({ ...prev, pdfPath: data.data.path }))
+      else alert('File upload failed: ' + data.error)
     } catch (error) {
       console.error('Error uploading file:', error)
       alert('File upload failed')
@@ -114,74 +72,38 @@ export default function NewRequestPage() {
   }
 
   const addApprover = () => {
-    if (!newApprover.approverName || !newApprover.approverEmail) {
-      alert('Please fill in approver name and email')
-      return
-    }
-
+    if (!newApprover.approverName || !newApprover.approverEmail) { alert('Please fill in approver name and email'); return }
     setApprovers([...approvers, { ...newApprover }])
-    setNewApprover({
-      approverName: '',
-      approverEmail: '',
-      role: 'Reviewer',
-    })
+    setNewApprover({ approverName: '', approverEmail: '', role: 'Reviewer' })
   }
-
-  const removeApprover = (index: number) => {
-    setApprovers(approvers.filter((_, i) => i !== index))
+  const removeApprover = (i: number) => setApprovers(approvers.filter((_, idx) => idx !== i))
+  const moveApproverUp = (i: number) => {
+    if (i === 0) return
+    const a = [...approvers]; [a[i - 1], a[i]] = [a[i], a[i - 1]]; setApprovers(a)
   }
-
-  const moveApproverUp = (index: number) => {
-    if (index === 0) return
-    const newApprovers = [...approvers]
-    ;[newApprovers[index - 1], newApprovers[index]] = [newApprovers[index], newApprovers[index - 1]]
-    setApprovers(newApprovers)
-  }
-
-  const moveApproverDown = (index: number) => {
-    if (index === approvers.length - 1) return
-    const newApprovers = [...approvers]
-    ;[newApprovers[index], newApprovers[index + 1]] = [newApprovers[index + 1], newApprovers[index]]
-    setApprovers(newApprovers)
+  const moveApproverDown = (i: number) => {
+    if (i === approvers.length - 1) return
+    const a = [...approvers]; [a[i], a[i + 1]] = [a[i + 1], a[i]]; setApprovers(a)
   }
 
   const validateForm = () => {
-    if (!formData.title) {
-      alert('Please enter a title')
-      return false
-    }
-    if (!formData.requestedById) {
-      alert('Please select a requester')
-      return false
-    }
-    if (!formData.dueDate) {
-      alert('Please select a due date')
-      return false
-    }
+    if (!formData.title) { alert('Please enter a title'); return false }
+    if (!formData.requestedById) { alert('Please select a requester'); return false }
+    if (!formData.dueDate) { alert('Please select a due date'); return false }
     return true
   }
 
   const handleSaveDraft = async () => {
     if (!validateForm()) return
-
     try {
       setLoading(true)
       const response = await fetch('/api/requests', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          approvers: approvers.length > 0 ? approvers : undefined,
-        }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...formData, approvers: approvers.length > 0 ? approvers : undefined }),
       })
-
       const data = await response.json()
-      if (data.success) {
-        alert('Draft saved successfully!')
-        router.push(`/requests/${data.data.id}`)
-      } else {
-        alert('Failed to save draft: ' + data.error)
-      }
+      if (data.success) router.push(`/requests/${data.data.id}`)
+      else alert('Failed to save draft: ' + data.error)
     } catch (error) {
       console.error('Error saving draft:', error)
       alert('Failed to save draft')
@@ -192,49 +114,20 @@ export default function NewRequestPage() {
 
   const handleSubmit = async () => {
     if (!validateForm()) return
-
-    if (!formData.pdfPath) {
-      alert('Please upload a PDF document before submitting')
-      return
-    }
-
-    if (approvers.length === 0) {
-      alert('Please add at least one approver before submitting')
-      return
-    }
-
+    if (!formData.pdfPath) { alert('Please upload a PDF document before submitting'); return }
+    if (approvers.length === 0) { alert('Please add at least one approver before submitting'); return }
     try {
       setLoading(true)
-
-      // First create the request as draft
-      const createResponse = await fetch('/api/requests', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          approvers,
-        }),
+      const createRes = await fetch('/api/requests', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...formData, approvers }),
       })
-
-      const createData = await createResponse.json()
-      if (!createData.success) {
-        alert('Failed to create request: ' + createData.error)
-        return
-      }
-
-      // Then submit it
-      const submitResponse = await fetch(`/api/requests/${createData.data.id}/submit`, {
-        method: 'POST',
-      })
-
-      const submitData = await submitResponse.json()
-      if (submitData.success) {
-        alert('Request submitted successfully!')
-        router.push(`/requests/${createData.data.id}`)
-      } else {
-        alert('Failed to submit request: ' + submitData.error)
-        router.push(`/requests/${createData.data.id}`)
-      }
+      const createData = await createRes.json()
+      if (!createData.success) { alert('Failed to create request: ' + createData.error); return }
+      const submitRes = await fetch(`/api/requests/${createData.data.id}/submit`, { method: 'POST' })
+      const submitData = await submitRes.json()
+      if (!submitData.success) alert('Failed to submit request: ' + submitData.error)
+      router.push(`/requests/${createData.data.id}`)
     } catch (error) {
       console.error('Error submitting request:', error)
       alert('Failed to submit request')
@@ -243,373 +136,151 @@ export default function NewRequestPage() {
     }
   }
 
+  const roleHints: Record<string, string> = { Reviewer: 'reviews', Approver: 'approves', Signatory: 'signs' }
+
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-black p-8">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <Link
-            href="/requests"
-            className="text-primary hover:text-primary/80 text-sm font-medium mb-4 inline-block transition-colors"
-          >
-            ← Back to Requests
-          </Link>
-          <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">
-            Create New Request
-          </h1>
-          <p className="text-zinc-600 dark:text-zinc-400 mt-1">
-            Fill in the details below to create a new document request
-          </p>
-        </div>
+    <motion.div
+      initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: 'easeOut' }}
+      className="mx-auto max-w-3xl px-6 py-10"
+    >
+      <Link href="/requests" className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition hover:text-foreground">
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        Back to requests
+      </Link>
 
-        {/* Form */}
-        <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-6 space-y-6">
-          {/* Basic Information */}
-          <div>
-            <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50 mb-4">
-              Basic Information
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                  Title <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="title"
-                  value={formData.title}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100"
-                  placeholder="Enter request title"
-                  required
-                />
-              </div>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold tracking-tight text-foreground">New request</h1>
+        <p className="mt-2 text-sm text-muted-foreground">Fill in the details, attach a PDF, and build the sequential approval chain.</p>
+      </div>
 
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                  Requester <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={formData.requestedById}
-                  onChange={handleUserChange}
-                  className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100"
-                  required
-                >
-                  <option value="">Select requester</option>
-                  {users.map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {user.name} ({user.department})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                  Department <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="department"
-                  value={formData.department}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100"
-                  placeholder="Department"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                  Request Type <span className="text-red-500">*</span>
-                </label>
-                <select
-                  name="requestType"
-                  value={formData.requestType}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100"
-                  required
-                >
-                  <option value="Internal Approval">Internal Approval</option>
-                  <option value="Client Submission">Client Submission</option>
-                  <option value="Contract Review">Contract Review</option>
-                  <option value="Signature Request">Signature Request</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                  Priority <span className="text-red-500">*</span>
-                </label>
-                <select
-                  name="priority"
-                  value={formData.priority}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100"
-                  required
-                >
-                  <option value="Low">Low</option>
-                  <option value="Medium">Medium</option>
-                  <option value="High">High</option>
-                </select>
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                  Due Date <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  name="dueDate"
-                  value={formData.dueDate}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100"
-                  required
-                />
-              </div>
+      <div className="space-y-6">
+        {/* Basic info */}
+        <section className="glass rounded-xl p-6">
+          <h2 className="mb-5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Basic information</h2>
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <label className={labelCls}>Title <span className="text-destructive">*</span></label>
+              <input name="title" value={formData.title} onChange={handleInputChange} className={inputCls} placeholder="e.g. Q4 Vendor Contract Review" />
             </div>
-          </div>
-
-          {/* External Party (Optional) */}
-          <div>
-            <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50 mb-4">
-              External Party (Optional)
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                  External Party Name
-                </label>
-                <input
-                  type="text"
-                  name="externalPartyName"
-                  value={formData.externalPartyName}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100"
-                  placeholder="Company or person name"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                  External Party Contact
-                </label>
-                <input
-                  type="text"
-                  name="externalPartyContact"
-                  value={formData.externalPartyContact}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100"
-                  placeholder="Email or WhatsApp"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* PDF Upload */}
-          <div>
-            <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50 mb-4">
-              Document Upload
-            </h2>
             <div>
-              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                PDF Document {formData.pdfPath ? '' : <span className="text-red-500">*</span>}
-              </label>
-              {formData.pdfPath ? (
-                <div className="flex items-center gap-4">
-                  <span className="text-sm text-green-600 dark:text-green-400">
-                    ✓ File uploaded successfully
-                  </span>
-                  <a
-                    href={formData.pdfPath}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:text-primary/80 text-sm font-medium transition-colors"
-                  >
-                    View File
-                  </a>
-                  <button
-                    type="button"
-                    onClick={() => setFormData((prev) => ({ ...prev, pdfPath: '' }))}
-                    className="text-red-600 hover:text-red-700 text-sm font-medium transition-colors"
-                  >
-                    Remove
-                  </button>
-                </div>
-              ) : (
-                <div>
-                  <input
-                    type="file"
-                    accept=".pdf"
-                    onChange={handleFileUpload}
-                    disabled={uploadingFile}
-                    className="block w-full text-sm text-zinc-900 dark:text-zinc-100 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 file:cursor-pointer"
-                  />
-                  {uploadingFile && (
-                    <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-2">
-                      Uploading...
-                    </p>
-                  )}
-                </div>
-              )}
+              <label className={labelCls}>Requester <span className="text-destructive">*</span></label>
+              <select value={formData.requestedById} onChange={handleUserChange} className={inputCls}>
+                <option value="">Select requester</option>
+                {users.map((u) => <option key={u.id} value={u.id}>{u.name} · {u.department}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Department <span className="text-destructive">*</span></label>
+              <input name="department" value={formData.department} onChange={handleInputChange} className={inputCls} placeholder="Department" />
+            </div>
+            <div>
+              <label className={labelCls}>Request type <span className="text-destructive">*</span></label>
+              <select name="requestType" value={formData.requestType} onChange={handleInputChange} className={inputCls}>
+                {['Internal Approval', 'Client Submission', 'Contract Review', 'Signature Request'].map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Priority <span className="text-destructive">*</span></label>
+              <select name="priority" value={formData.priority} onChange={handleInputChange} className={inputCls}>
+                {['Low', 'Medium', 'High'].map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+            <div className="sm:col-span-2">
+              <label className={labelCls}>Due date <span className="text-destructive">*</span></label>
+              <input type="date" name="dueDate" value={formData.dueDate} onChange={handleInputChange} className={`${inputCls} tnum`} />
             </div>
           </div>
+        </section>
 
-          {/* Approvers */}
-          <div>
-            <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50 mb-4">
-              Approvers (Sequential)
-            </h2>
+        {/* External party */}
+        <section className="glass rounded-xl p-6">
+          <h2 className="mb-5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">External party <span className="normal-case text-muted-foreground/60">(optional)</span></h2>
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <div>
+              <label className={labelCls}>Name</label>
+              <input name="externalPartyName" value={formData.externalPartyName} onChange={handleInputChange} className={inputCls} placeholder="Company or person" />
+            </div>
+            <div>
+              <label className={labelCls}>Email / WhatsApp</label>
+              <input name="externalPartyContact" value={formData.externalPartyContact} onChange={handleInputChange} className={inputCls} placeholder="email or +966…" />
+            </div>
+          </div>
+        </section>
 
-            {/* Approver List */}
-            {approvers.length > 0 && (
-              <div className="mb-4 space-y-2">
-                {approvers.map((approver, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center gap-4 p-3 bg-zinc-50 dark:bg-zinc-800 rounded-lg"
-                  >
-                    <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 min-w-[30px]">
-                      {index + 1}.
-                    </span>
-                    <div className="flex-1">
-                      <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                        {approver.approverName}
-                      </div>
-                      <div className="text-xs text-zinc-600 dark:text-zinc-400">
-                        {approver.approverEmail} • {approver.role}
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => moveApproverUp(index)}
-                        disabled={index === 0}
-                        className="p-1 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                        title="Move up"
-                      >
-                        ↑
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => moveApproverDown(index)}
-                        disabled={index === approvers.length - 1}
-                        className="p-1 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                        title="Move down"
-                      >
-                        ↓
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => removeApprover(index)}
-                        className="p-1 text-red-600 hover:text-red-700 transition-colors"
-                        title="Remove"
-                      >
-                        ✕
-                      </button>
-                    </div>
+        {/* Document */}
+        <section className="glass rounded-xl p-6">
+          <h2 className="mb-5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Document {formData.pdfPath ? '' : <span className="text-destructive">*</span>}</h2>
+          {formData.pdfPath ? (
+            <div className="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/[0.06] p-3.5">
+              <span className="grid h-9 w-9 place-items-center rounded-md bg-primary/15 text-primary"><svg viewBox="0 0 24 24" className="h-5 w-5" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg></span>
+              <div className="flex-1 text-sm"><div className="font-medium text-foreground">PDF uploaded</div><a href={formData.pdfPath} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline">View file</a></div>
+              <button onClick={() => setFormData((p) => ({ ...p, pdfPath: '' }))} className="text-sm font-medium text-destructive hover:underline">Remove</button>
+            </div>
+          ) : (
+            <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-background/40 px-6 py-8 text-center transition hover:border-primary/50 hover:bg-primary/[0.03]">
+              <span className="grid h-10 w-10 place-items-center rounded-full bg-muted text-muted-foreground"><svg viewBox="0 0 24 24" className="h-5 w-5" fill="none"><path d="M12 16V4m0 0L8 8m4-4l4 4M4 20h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg></span>
+              <span className="text-sm font-medium text-foreground">{uploadingFile ? 'Uploading…' : 'Click to upload a PDF'}</span>
+              <span className="text-xs text-muted-foreground">PDF only · max 10MB · stored on Vercel Blob</span>
+              <input type="file" accept=".pdf" onChange={handleFileUpload} disabled={uploadingFile} className="hidden" />
+            </label>
+          )}
+        </section>
+
+        {/* Approvers */}
+        <section className="glass rounded-xl p-6">
+          <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Approvers</h2>
+          <p className="mb-5 text-xs text-muted-foreground">They act in order — step 1 first, then 2, then 3.</p>
+
+          {approvers.length > 0 && (
+            <ol className="mb-5 space-y-2">
+              {approvers.map((a, i) => (
+                <li key={i} className="flex items-center gap-3 rounded-lg border border-border/60 bg-background/40 p-3">
+                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-primary/12 text-sm font-semibold text-primary ring-1 ring-primary/25">{i + 1}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium text-foreground">{a.approverName}</div>
+                    <div className="truncate text-xs text-muted-foreground">{a.approverEmail} · {a.role} {roleHints[a.role]}</div>
                   </div>
-                ))}
-              </div>
-            )}
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => moveApproverUp(i)} disabled={i === 0} className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-30" title="Move up">↑</button>
+                    <button onClick={() => moveApproverDown(i)} disabled={i === approvers.length - 1} className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-30" title="Move down">↓</button>
+                    <button onClick={() => removeApprover(i)} className="grid h-7 w-7 place-items-center rounded-md text-destructive transition hover:bg-destructive/10" title="Remove">✕</button>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          )}
 
-            {/* Add Approver Form */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                  Name
-                </label>
-                <input
-                  type="text"
-                  value={newApprover.approverName}
-                  onChange={(e) =>
-                    setNewApprover({ ...newApprover, approverName: e.target.value })
-                  }
-                  className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100"
-                  placeholder="Approver name"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={newApprover.approverEmail}
-                  onChange={(e) =>
-                    setNewApprover({ ...newApprover, approverEmail: e.target.value })
-                  }
-                  className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100"
-                  placeholder="email@hakeng.com"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                  Role
-                </label>
-                <select
-                  value={newApprover.role}
-                  onChange={(e) =>
-                    setNewApprover({ ...newApprover, role: e.target.value })
-                  }
-                  className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100"
-                >
-                  <option value="Reviewer">Reviewer</option>
-                  <option value="Approver">Approver</option>
-                  <option value="Signatory">Signatory</option>
-                </select>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={addApprover}
-              className="px-4 py-2 bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-lg hover:bg-zinc-300 dark:hover:bg-zinc-600 transition-colors font-medium"
-            >
-              + Add Approver
-            </button>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <input value={newApprover.approverName} onChange={(e) => setNewApprover({ ...newApprover, approverName: e.target.value })} className={inputCls} placeholder="Name" />
+            <input type="email" value={newApprover.approverEmail} onChange={(e) => setNewApprover({ ...newApprover, approverEmail: e.target.value })} className={inputCls} placeholder="email@hakeng.sa" />
+            <select value={newApprover.role} onChange={(e) => setNewApprover({ ...newApprover, role: e.target.value })} className={inputCls}>
+              {['Reviewer', 'Approver', 'Signatory'].map((r) => <option key={r} value={r}>{r}</option>)}
+            </select>
           </div>
+          <button onClick={addApprover} className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-border bg-background/50 px-4 py-2 text-sm font-medium text-foreground transition hover:border-primary/40 hover:bg-primary/[0.04]">
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
+            Add approver
+          </button>
+        </section>
 
-          {/* Remarks */}
-          <div>
-            <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50 mb-4">
-              Additional Notes
-            </h2>
-            <div>
-              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                Remarks (Optional)
-              </label>
-              <textarea
-                name="remarks"
-                value={formData.remarks}
-                onChange={handleInputChange}
-                rows={4}
-                className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100"
-                placeholder="Add any additional notes or context..."
-              />
-            </div>
-          </div>
+        {/* Remarks */}
+        <section className="glass rounded-xl p-6">
+          <h2 className="mb-5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Remarks <span className="normal-case text-muted-foreground/60">(optional)</span></h2>
+          <textarea name="remarks" value={formData.remarks} onChange={handleInputChange} rows={4} className={inputCls} placeholder="Add any context for the approvers…" />
+        </section>
 
-          {/* Actions */}
-          <div className="flex gap-4 pt-4 border-t border-zinc-200 dark:border-zinc-800">
-            <button
-              type="button"
-              onClick={handleSaveDraft}
-              disabled={loading}
-              className="px-6 py-3 bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-lg hover:bg-zinc-300 dark:hover:bg-zinc-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Saving...' : 'Save as Draft'}
-            </button>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={loading}
-              className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Submitting...' : 'Submit for Approval'}
-            </button>
-          </div>
+        {/* Actions */}
+        <div className="sticky bottom-4 z-10 flex flex-wrap gap-3 rounded-xl glass p-4">
+          <button onClick={handleSaveDraft} disabled={loading}
+            className="rounded-lg border border-border bg-background/50 px-5 py-2.5 text-sm font-semibold text-foreground transition hover:bg-muted/50 active:scale-[0.98] disabled:opacity-50">
+            {loading ? 'Saving…' : 'Save as draft'}
+          </button>
+          <button onClick={handleSubmit} disabled={loading}
+            className="rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:brightness-110 active:scale-[0.98] disabled:opacity-50">
+            {loading ? 'Submitting…' : 'Submit for approval'}
+          </button>
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 }

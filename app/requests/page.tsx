@@ -1,8 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import { motion } from 'motion/react'
 import { getCurrentPendingApprover, calculateAgingDays } from '@/lib/workflows'
+import { StatusBadge } from '@/components/status-badge'
 
 interface User {
   id: string
@@ -18,8 +20,6 @@ interface Approver {
   role: string
   sequence: number
   status: string
-  comments?: string
-  actionDate?: string
 }
 
 interface DocumentRequest {
@@ -35,19 +35,15 @@ interface DocumentRequest {
   createdAt: string
 }
 
+const STATUSES = ['Draft', 'Pending Approval', 'Approved', 'Rejected']
+const TYPES = ['Internal Approval', 'Client Submission', 'Contract Review', 'Signature Request']
+const PRIORITIES = ['Low', 'Medium', 'High']
+
 export default function RequestsPage() {
   const [requests, setRequests] = useState<DocumentRequest[]>([])
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState({
-    status: '',
-    requestType: '',
-    priority: '',
-    department: '',
-  })
+  const [filter, setFilter] = useState({ status: '', requestType: '', priority: '', department: '' })
 
-  // useCallback so the function identity is stable per `filter`, satisfying the
-  // effect's dependency list. State is only set after the await (never
-  // synchronously inside the effect), avoiding cascading-render lint errors.
   const fetchRequests = useCallback(async () => {
     try {
       const params = new URLSearchParams()
@@ -55,277 +51,203 @@ export default function RequestsPage() {
       if (filter.requestType) params.append('requestType', filter.requestType)
       if (filter.priority) params.append('priority', filter.priority)
       if (filter.department) params.append('department', filter.department)
-
-      const response = await fetch(`/api/requests?${params.toString()}`)
-      const data = await response.json()
-
-      if (data.success) {
-        setRequests(data.data)
-      }
-    } catch (error) {
-      console.error('Error fetching requests:', error)
+      const res = await fetch(`/api/requests?${params.toString()}`)
+      const data = await res.json()
+      if (data.success) setRequests(data.data)
+    } catch (e) {
+      console.error('Error fetching requests:', e)
     } finally {
       setLoading(false)
     }
   }, [filter])
 
   useEffect(() => {
-    // Standard fetch-on-mount: state is set only after the await inside
-    // fetchRequests, so this does not cause a synchronous cascading render.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchRequests()
   }, [fetchRequests])
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    })
-  }
+  const stats = useMemo(() => {
+    const by = (s: string) => requests.filter((r) => r.status === s).length
+    return [
+      { label: 'Total', value: requests.length, tone: 'text-foreground' },
+      { label: 'Pending', value: by('Pending Approval'), tone: 'text-warning' },
+      { label: 'Approved', value: by('Approved'), tone: 'text-primary' },
+      { label: 'Rejected', value: by('Rejected'), tone: 'text-destructive' },
+    ]
+  }, [requests])
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Draft':
-        return 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300'
-      case 'Pending Approval':
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
-      case 'Approved':
-        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
-      case 'Rejected':
-        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
-      default:
-        return 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300'
-    }
-  }
+  const formatDate = (d: string) =>
+    new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+
+  const selectCls =
+    'w-full rounded-lg border border-input bg-background/60 px-3 py-2 text-sm text-foreground outline-none transition focus:ring-2 focus:ring-ring/40'
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-black p-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">
-              Document Requests
-            </h1>
-            <p className="text-zinc-600 dark:text-zinc-400 mt-1">
-              Manage approval workflows and track document submissions
-            </p>
-          </div>
-          <Link
-            href="/requests/new"
-            className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
+    <div className="mx-auto max-w-7xl px-6 py-10">
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: 'easeOut' }}
+        className="mb-8"
+      >
+        <p className="mb-1 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+          Document Approvals
+        </p>
+        <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+          Requests
+        </h1>
+        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+          Track every document request through its sequential approval chain — from draft to
+          signed-off.
+        </p>
+      </motion.div>
+
+      {/* Metric tiles */}
+      <motion.div
+        initial="hidden"
+        animate="show"
+        variants={{ show: { transition: { staggerChildren: 0.05 } } }}
+        className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4"
+      >
+        {stats.map((s) => (
+          <motion.div
+            key={s.label}
+            variants={{ hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } }}
+            className="glass rounded-xl p-4"
           >
-            + Create New Request
-          </Link>
-        </div>
+            <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              {s.label}
+            </div>
+            <div className={`tnum mt-1 text-3xl font-semibold ${s.tone}`}>{s.value}</div>
+          </motion.div>
+        ))}
+      </motion.div>
 
-        {/* Filters */}
-        <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-6 mb-6">
-          <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50 mb-4">
-            Filters
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                Status
-              </label>
-              <select
-                value={filter.status}
-                onChange={(e) => setFilter({ ...filter, status: e.target.value })}
-                className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100"
-              >
-                <option value="">All Statuses</option>
-                <option value="Draft">Draft</option>
-                <option value="Pending Approval">Pending Approval</option>
-                <option value="Approved">Approved</option>
-                <option value="Rejected">Rejected</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                Type
-              </label>
-              <select
-                value={filter.requestType}
-                onChange={(e) => setFilter({ ...filter, requestType: e.target.value })}
-                className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100"
-              >
-                <option value="">All Types</option>
-                <option value="Internal Approval">Internal Approval</option>
-                <option value="Client Submission">Client Submission</option>
-                <option value="Contract Review">Contract Review</option>
-                <option value="Signature Request">Signature Request</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                Priority
-              </label>
-              <select
-                value={filter.priority}
-                onChange={(e) => setFilter({ ...filter, priority: e.target.value })}
-                className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100"
-              >
-                <option value="">All Priorities</option>
-                <option value="Low">Low</option>
-                <option value="Medium">Medium</option>
-                <option value="High">High</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                Department
-              </label>
-              <input
-                type="text"
-                value={filter.department}
-                onChange={(e) => setFilter({ ...filter, department: e.target.value })}
-                placeholder="Filter by department"
-                className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100"
-              />
-            </div>
+      {/* Filters */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.1, ease: 'easeOut' }}
+        className="glass mb-6 rounded-xl p-5"
+      >
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-muted-foreground">Status</span>
+            <select value={filter.status} onChange={(e) => setFilter({ ...filter, status: e.target.value })} className={selectCls}>
+              <option value="">All statuses</option>
+              {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-muted-foreground">Type</span>
+            <select value={filter.requestType} onChange={(e) => setFilter({ ...filter, requestType: e.target.value })} className={selectCls}>
+              <option value="">All types</option>
+              {TYPES.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-muted-foreground">Priority</span>
+            <select value={filter.priority} onChange={(e) => setFilter({ ...filter, priority: e.target.value })} className={selectCls}>
+              <option value="">All priorities</option>
+              {PRIORITIES.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-muted-foreground">Department</span>
+            <input value={filter.department} onChange={(e) => setFilter({ ...filter, department: e.target.value })} placeholder="Search department" className={selectCls} />
+          </label>
+        </div>
+      </motion.div>
+
+      {/* Table */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.15, ease: 'easeOut' }}
+        className="glass overflow-hidden rounded-xl"
+      >
+        {loading ? (
+          <div className="space-y-3 p-6">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="h-12 animate-pulse rounded-lg bg-muted/40" />
+            ))}
           </div>
-        </div>
-
-        {/* Table */}
-        <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-          {loading ? (
-            <div className="p-8 text-center text-zinc-600 dark:text-zinc-400">
-              Loading requests...
-            </div>
-          ) : requests.length === 0 ? (
-            <div className="p-8 text-center text-zinc-600 dark:text-zinc-400">
-              No requests found. Create your first request to get started.
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-zinc-50 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                      Title
+        ) : requests.length === 0 ? (
+          <div className="px-6 py-16 text-center">
+            <p className="text-sm text-muted-foreground">No requests match these filters.</p>
+            <Link href="/requests/new" className="mt-3 inline-block text-sm font-semibold text-primary hover:underline">
+              Create the first request →
+            </Link>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-border/70 text-left">
+                  {['Title', 'Requested By', 'Department', 'Status', 'Current Pending Approver', 'Due Date', 'Aging', ''].map((h) => (
+                    <th key={h} className="whitespace-nowrap px-5 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      {h}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                      Requested By
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                      Department
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                      Current Pending Approver
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                      Due Date
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                      Aging (Days)
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                  {requests.map((request) => {
-                    // Feature 10e: current pending approver = lowest-sequence Pending.
-                    // Only meaningful while the request is in flight.
-                    const pending =
-                      request.status === 'Pending Approval'
-                        ? getCurrentPendingApprover(request.approvers)
-                        : null
-                    // Feature 10g: aging in whole days since creation.
-                    const aging = calculateAgingDays(request.createdAt, new Date())
-                    const overdue =
-                      new Date(request.dueDate) < new Date() &&
-                      !['Approved', 'Rejected'].includes(request.status)
-
-                    return (
-                      <tr
-                        key={request.id}
-                        className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
-                      >
-                        <td className="px-6 py-4">
-                          <Link
-                            href={`/requests/${request.id}`}
-                            className="text-sm font-medium text-zinc-900 dark:text-zinc-100 hover:text-primary transition-colors"
-                          >
-                            {request.title}
-                          </Link>
-                          <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                            {request.requestType}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-zinc-700 dark:text-zinc-300">
-                          {request.requestedBy.name}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-zinc-700 dark:text-zinc-300">
-                          {request.department}
-                        </td>
-                        <td className="px-6 py-4">
-                          <span
-                            className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                              request.status
-                            )}`}
-                          >
-                            {request.status}
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {requests.map((r, i) => {
+                  const pending = r.status === 'Pending Approval' ? getCurrentPendingApprover(r.approvers) : null
+                  const aging = calculateAgingDays(r.createdAt, new Date())
+                  const overdue = new Date(r.dueDate) < new Date() && !['Approved', 'Rejected'].includes(r.status)
+                  return (
+                    <motion.tr
+                      key={r.id}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.04 * i, duration: 0.3 }}
+                      className="group border-b border-border/40 transition-colors last:border-0 hover:bg-primary/[0.04]"
+                    >
+                      <td className="px-5 py-4">
+                        <Link href={`/requests/${r.id}`} className="font-medium text-foreground transition group-hover:text-primary">
+                          {r.title}
+                        </Link>
+                        <div className="mt-0.5 text-xs text-muted-foreground">{r.requestType}</div>
+                      </td>
+                      <td className="whitespace-nowrap px-5 py-4 text-foreground">{r.requestedBy.name}</td>
+                      <td className="whitespace-nowrap px-5 py-4 text-muted-foreground">{r.department}</td>
+                      <td className="px-5 py-4"><StatusBadge status={r.status} /></td>
+                      <td className="whitespace-nowrap px-5 py-4">
+                        {pending ? (
+                          <span className="text-foreground">
+                            {pending.approverName}
+                            <span className="ml-1 text-xs text-muted-foreground">· step {pending.sequence}</span>
                           </span>
-                        </td>
-                        <td className="px-6 py-4 text-sm">
-                          {pending ? (
-                            <span className="text-zinc-900 dark:text-zinc-100">
-                              {pending.approverName}
-                              <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                                {' '}
-                                (#{pending.sequence})
-                              </span>
-                            </span>
-                          ) : (
-                            <span className="text-zinc-400 dark:text-zinc-600">N/A</span>
-                          )}
-                        </td>
-                        <td
-                          className={`px-6 py-4 text-sm ${
-                            overdue
-                              ? 'text-red-600 dark:text-red-400 font-semibold'
-                              : 'text-zinc-700 dark:text-zinc-300'
-                          }`}
-                        >
-                          {formatDate(request.dueDate)}
-                          {overdue && (
-                            <span className="block text-xs text-red-500">Overdue</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-zinc-700 dark:text-zinc-300">
-                          {aging}
-                        </td>
-                        <td className="px-6 py-4">
-                          <Link
-                            href={`/requests/${request.id}`}
-                            className="text-primary hover:text-primary/80 text-sm font-medium transition-colors"
-                          >
-                            View →
-                          </Link>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        {/* Summary */}
-        {!loading && requests.length > 0 && (
-          <div className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">
-            Showing {requests.length} request{requests.length !== 1 ? 's' : ''}
+                        ) : (
+                          <span className="text-muted-foreground/60">—</span>
+                        )}
+                      </td>
+                      <td className={`tnum whitespace-nowrap px-5 py-4 ${overdue ? 'font-semibold text-destructive' : 'text-muted-foreground'}`}>
+                        {formatDate(r.dueDate)}
+                        {overdue && <span className="ml-1.5 text-[10px] uppercase tracking-wide">overdue</span>}
+                      </td>
+                      <td className="tnum px-5 py-4 text-muted-foreground">{aging}d</td>
+                      <td className="px-5 py-4 text-right">
+                        <Link href={`/requests/${r.id}`} className="text-sm font-medium text-primary opacity-0 transition group-hover:opacity-100">
+                          View →
+                        </Link>
+                      </td>
+                    </motion.tr>
+                  )
+                })}
+              </tbody>
+            </table>
           </div>
         )}
-      </div>
+      </motion.div>
+
+      {!loading && requests.length > 0 && (
+        <p className="mt-4 text-xs text-muted-foreground">
+          Showing {requests.length} request{requests.length !== 1 ? 's' : ''}
+        </p>
+      )}
     </div>
   )
 }

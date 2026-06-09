@@ -3,41 +3,20 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { motion, AnimatePresence } from 'motion/react'
+import { StatusBadge, PriorityTag } from '@/components/status-badge'
+import { getCurrentPendingApprover } from '@/lib/workflows'
 
-interface User {
-  id: string
-  name: string
-  email: string
-  department: string
-}
-
+interface User { id: string; name: string; email: string; department: string }
 interface Approver {
-  id: string
-  approverName: string
-  approverEmail: string
-  role: string
-  sequence: number
-  status: string
-  comments?: string
-  actionDate?: string
+  id: string; approverName: string; approverEmail: string; role: string
+  sequence: number; status: string; comments?: string; actionDate?: string
 }
-
 interface DocumentRequest {
-  id: string
-  title: string
-  requestType: string
-  department: string
-  priority: string
-  dueDate: string
-  externalPartyName?: string
-  externalPartyContact?: string
-  pdfPath: string
-  status: string
-  remarks?: string
-  requestedBy: User
-  approvers: Approver[]
-  createdAt: string
-  updatedAt: string
+  id: string; title: string; requestType: string; department: string; priority: string
+  dueDate: string; externalPartyName?: string; externalPartyContact?: string; pdfPath: string
+  status: string; remarks?: string; requestedBy: User; approvers: Approver[]
+  createdAt: string; updatedAt: string
 }
 
 export default function RequestDetailPage() {
@@ -51,19 +30,12 @@ export default function RequestDetailPage() {
   const [showApprovalModal, setShowApprovalModal] = useState(false)
   const [actionType, setActionType] = useState<'Approved' | 'Rejected'>('Approved')
 
-  // Defined before the effect (no use-before-declare) and memoised on the id so
-  // the effect's dependency list is honest. State is set only after the await.
   const fetchRequest = useCallback(async () => {
     try {
       const response = await fetch(`/api/requests/${params.id}`)
       const data = await response.json()
-
-      if (data.success) {
-        setRequest(data.data)
-      } else {
-        alert('Request not found')
-        router.push('/requests')
-      }
+      if (data.success) setRequest(data.data)
+      else { alert('Request not found'); router.push('/requests') }
     } catch (error) {
       console.error('Error fetching request:', error)
       alert('Error loading request')
@@ -74,59 +46,15 @@ export default function RequestDetailPage() {
 
   useEffect(() => {
     if (params.id) {
-      // Fetch-on-mount: state is set post-await inside fetchRequest, not synchronously.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       fetchRequest()
     }
   }, [params.id, fetchRequest])
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    })
-  }
-
-  const formatDateTime = (dateString: string) => {
-    return new Date(dateString).toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Draft':
-        return 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300'
-      case 'Pending':
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
-      case 'Pending Approval':
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
-      case 'Approved':
-        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
-      case 'Rejected':
-        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
-      default:
-        return 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300'
-    }
-  }
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'High':
-        return 'text-red-600 dark:text-red-400 font-semibold'
-      case 'Medium':
-        return 'text-yellow-600 dark:text-yellow-400 font-medium'
-      case 'Low':
-        return 'text-green-600 dark:text-green-400'
-      default:
-        return 'text-zinc-600 dark:text-zinc-400'
-    }
-  }
+  const formatDate = (d: string) =>
+    new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+  const formatDateTime = (d: string) =>
+    new Date(d).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 
   const openApprovalModal = (action: 'Approved' | 'Rejected') => {
     setActionType(action)
@@ -134,32 +62,19 @@ export default function RequestDetailPage() {
   }
 
   const handleApprovalAction = async () => {
-    if (!approverEmail) {
-      alert('Please enter your email address')
-      return
-    }
-
+    if (!approverEmail) { alert('Please enter your email address'); return }
     try {
       setActionLoading(true)
-      // Separate endpoints per spec: /approve and /reject
       const endpoint = actionType === 'Approved' ? 'approve' : 'reject'
       const response = await fetch(`/api/requests/${params.id}/${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          approverEmail,
-          comments: comments || undefined,
-        }),
+        body: JSON.stringify({ approverEmail, comments: comments || undefined }),
       })
-
       const data = await response.json()
-
       if (data.success) {
-        alert(`Request ${actionType.toLowerCase()} successfully!`)
-        setShowApprovalModal(false)
-        setApproverEmail('')
-        setComments('')
-        fetchRequest() // Refresh the data
+        setShowApprovalModal(false); setApproverEmail(''); setComments('')
+        fetchRequest()
       } else {
         alert('Error: ' + data.error)
       }
@@ -172,24 +87,13 @@ export default function RequestDetailPage() {
   }
 
   const handleSubmitRequest = async () => {
-    if (!confirm('Are you sure you want to submit this request for approval?')) {
-      return
-    }
-
+    if (!confirm('Submit this request for approval?')) return
     try {
       setActionLoading(true)
-      const response = await fetch(`/api/requests/${params.id}/submit`, {
-        method: 'POST',
-      })
-
+      const response = await fetch(`/api/requests/${params.id}/submit`, { method: 'POST' })
       const data = await response.json()
-
-      if (data.success) {
-        alert('Request submitted successfully!')
-        fetchRequest()
-      } else {
-        alert('Error: ' + data.error)
-      }
+      if (data.success) fetchRequest()
+      else alert('Error: ' + data.error)
     } catch (error) {
       console.error('Error submitting request:', error)
       alert('Failed to submit request')
@@ -199,24 +103,13 @@ export default function RequestDetailPage() {
   }
 
   const handleDeleteRequest = async () => {
-    if (!confirm('Are you sure you want to delete this request? This cannot be undone.')) {
-      return
-    }
-
+    if (!confirm('Delete this request? This cannot be undone.')) return
     try {
       setActionLoading(true)
-      const response = await fetch(`/api/requests/${params.id}`, {
-        method: 'DELETE',
-      })
-
+      const response = await fetch(`/api/requests/${params.id}`, { method: 'DELETE' })
       const data = await response.json()
-
-      if (data.success) {
-        alert('Request deleted successfully')
-        router.push('/requests')
-      } else {
-        alert('Error: ' + data.error)
-      }
+      if (data.success) router.push('/requests')
+      else alert('Error: ' + data.error)
     } catch (error) {
       console.error('Error deleting request:', error)
       alert('Failed to delete request')
@@ -227,392 +120,250 @@ export default function RequestDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-black p-8">
-        <div className="max-w-5xl mx-auto text-center text-zinc-600 dark:text-zinc-400">
-          Loading request details...
-        </div>
+      <div className="mx-auto max-w-5xl px-6 py-10">
+        <div className="glass h-40 animate-pulse rounded-xl" />
       </div>
     )
   }
-
   if (!request) {
-    return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-black p-8">
-        <div className="max-w-5xl mx-auto text-center text-zinc-600 dark:text-zinc-400">
-          Request not found
-        </div>
-      </div>
-    )
+    return <div className="mx-auto max-w-5xl px-6 py-16 text-center text-muted-foreground">Request not found</div>
   }
 
-  // Find the next pending approver (for sequential logic display)
-  const nextPendingApprover = request.approvers.find((a) => a.status === 'Pending')
+  const nextPending = getCurrentPendingApprover(request.approvers)
+  const overdue = new Date(request.dueDate) < new Date() && !['Approved', 'Rejected'].includes(request.status)
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-black p-8">
-      <div className="max-w-5xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <Link
-            href="/requests"
-            className="text-primary hover:text-primary/80 text-sm font-medium mb-4 inline-block transition-colors"
-          >
-            ← Back to Requests
-          </Link>
-          <div className="flex items-start justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">
-                {request.title}
-              </h1>
-              <p className="text-zinc-600 dark:text-zinc-400 mt-1">
-                Created by {request.requestedBy.name} on {formatDate(request.createdAt)}
-              </p>
-            </div>
-            <span
-              className={`px-4 py-2 rounded-full text-sm font-medium ${getStatusColor(
-                request.status
-              )}`}
-            >
-              {request.status}
-            </span>
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: 'easeOut' }}
+      className="mx-auto max-w-5xl px-6 py-10"
+    >
+      <Link href="/requests" className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition hover:text-foreground">
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        Back to requests
+      </Link>
+
+      {/* Title block */}
+      <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <div className="mb-2 flex items-center gap-2">
+            <span className="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">{request.requestType}</span>
+            <PriorityTag priority={request.priority} />
           </div>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">{request.title}</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Raised by <span className="font-medium text-foreground">{request.requestedBy.name}</span> · {request.department} · {formatDate(request.createdAt)}
+          </p>
+        </div>
+        <StatusBadge status={request.status} className="px-3 py-1.5 text-sm" />
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* Left column */}
+        <div className="space-y-6 lg:col-span-2">
+          {/* Details */}
+          <section className="glass rounded-xl p-6">
+            <h2 className="mb-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Request details</h2>
+            <dl className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
+              <Field label="Request type" value={request.requestType} />
+              <Field label="Department" value={request.department} />
+              <Field label="Priority" value={<PriorityTag priority={request.priority} />} />
+              <Field label="Due date" value={<span className={`tnum ${overdue ? 'font-semibold text-destructive' : ''}`}>{formatDate(request.dueDate)}{overdue && ' · overdue'}</span>} />
+              {request.externalPartyName && (
+                <Field label="External party" value={<>{request.externalPartyName}{request.externalPartyContact && <span className="text-muted-foreground"> · {request.externalPartyContact}</span>}</>} />
+              )}
+              {request.remarks && <div className="sm:col-span-2"><Field label="Remarks" value={request.remarks} /></div>}
+            </dl>
+          </section>
+
+          {/* Document */}
+          <section className="glass rounded-xl p-6">
+            <h2 className="mb-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Document</h2>
+            {request.pdfPath ? (
+              <a href={request.pdfPath} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-2.5 rounded-lg border border-border bg-background/50 px-4 py-3 text-sm font-medium text-foreground transition hover:border-primary/50 hover:bg-primary/[0.04]">
+                <span className="grid h-9 w-9 place-items-center rounded-md bg-primary/12 text-primary ring-1 ring-primary/25">
+                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none"><path d="M14 2v6h6M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" /></svg>
+                </span>
+                <span className="flex flex-col"><span>View PDF attachment</span><span className="text-xs text-muted-foreground">opens in a new tab</span></span>
+              </a>
+            ) : (
+              <p className="text-sm text-muted-foreground">No document uploaded yet.</p>
+            )}
+          </section>
+
+          {/* Pending-approval actions */}
+          {request.status === 'Pending Approval' && (
+            <section className="glass rounded-xl p-6">
+              <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Approver actions</h2>
+              {nextPending && (
+                <div className="mb-4 flex items-start gap-3 rounded-lg bg-warning/10 p-4 ring-1 ring-warning/30">
+                  <span className="mt-0.5 flex h-2 w-2 shrink-0"><span className="absolute h-2 w-2 animate-ping rounded-full bg-warning opacity-60" /><span className="h-2 w-2 rounded-full bg-warning" /></span>
+                  <p className="text-sm text-foreground">
+                    Awaiting <span className="font-semibold">{nextPending.approverName}</span> ({nextPending.role}, step {nextPending.sequence}). Sequential approval is enforced — only the current approver can act.
+                  </p>
+                </div>
+              )}
+              <div className="flex flex-wrap gap-3">
+                <button onClick={() => openApprovalModal('Approved')} disabled={actionLoading}
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:brightness-110 active:scale-[0.98] disabled:opacity-50">
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                  Approve
+                </button>
+                <button onClick={() => openApprovalModal('Rejected')} disabled={actionLoading}
+                  className="inline-flex items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/5 px-5 py-2.5 text-sm font-semibold text-destructive transition hover:bg-destructive/10 active:scale-[0.98] disabled:opacity-50">
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" /></svg>
+                  Reject
+                </button>
+              </div>
+            </section>
+          )}
+
+          {/* Draft actions */}
+          {request.status === 'Draft' && (
+            <section className="glass rounded-xl p-6">
+              <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Actions</h2>
+              <div className="flex flex-wrap gap-3">
+                <button onClick={handleSubmitRequest} disabled={actionLoading}
+                  className="rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:brightness-110 active:scale-[0.98] disabled:opacity-50">
+                  Submit for approval
+                </button>
+                <button onClick={handleDeleteRequest} disabled={actionLoading}
+                  className="rounded-lg border border-destructive/40 bg-destructive/5 px-5 py-2.5 text-sm font-semibold text-destructive transition hover:bg-destructive/10 active:scale-[0.98] disabled:opacity-50">
+                  Delete draft
+                </button>
+              </div>
+            </section>
+          )}
         </div>
 
-        {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - Details */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Basic Information */}
-            <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-6">
-              <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50 mb-4">
-                Request Details
-              </h2>
-              <dl className="space-y-3">
-                <div className="grid grid-cols-3">
-                  <dt className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-                    Request Type
-                  </dt>
-                  <dd className="col-span-2 text-sm text-zinc-900 dark:text-zinc-100">
-                    {request.requestType}
-                  </dd>
-                </div>
-                <div className="grid grid-cols-3">
-                  <dt className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-                    Department
-                  </dt>
-                  <dd className="col-span-2 text-sm text-zinc-900 dark:text-zinc-100">
-                    {request.department}
-                  </dd>
-                </div>
-                <div className="grid grid-cols-3">
-                  <dt className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-                    Priority
-                  </dt>
-                  <dd className={`col-span-2 text-sm ${getPriorityColor(request.priority)}`}>
-                    {request.priority}
-                  </dd>
-                </div>
-                <div className="grid grid-cols-3">
-                  <dt className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-                    Due Date
-                  </dt>
-                  <dd className="col-span-2 text-sm text-zinc-900 dark:text-zinc-100">
-                    {formatDate(request.dueDate)}
-                  </dd>
-                </div>
-                {request.externalPartyName && (
-                  <div className="grid grid-cols-3">
-                    <dt className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-                      External Party
-                    </dt>
-                    <dd className="col-span-2 text-sm text-zinc-900 dark:text-zinc-100">
-                      {request.externalPartyName}
-                      {request.externalPartyContact && (
-                        <span className="text-zinc-600 dark:text-zinc-400">
-                          {' '}
-                          ({request.externalPartyContact})
-                        </span>
-                      )}
-                    </dd>
-                  </div>
-                )}
-                {request.remarks && (
-                  <div className="grid grid-cols-3">
-                    <dt className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-                      Remarks
-                    </dt>
-                    <dd className="col-span-2 text-sm text-zinc-900 dark:text-zinc-100">
-                      {request.remarks}
-                    </dd>
-                  </div>
-                )}
-              </dl>
-            </div>
-
-            {/* PDF Document */}
-            <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-6">
-              <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50 mb-4">
-                Document
-              </h2>
-              {request.pdfPath ? (
-                <div className="space-y-3">
-                  <a
-                    href={request.pdfPath}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
-                  >
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                      />
-                    </svg>
-                    View/Download PDF
-                  </a>
-                </div>
-              ) : (
-                <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                  No document uploaded yet
-                </p>
-              )}
-            </div>
-
-            {/* Approval Actions (if pending approval) */}
-            {request.status === 'Pending Approval' && (
-              <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-6">
-                <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50 mb-4">
-                  Approver Actions
-                </h2>
-                {nextPendingApprover && (
-                  <div className="mb-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                    <p className="text-sm text-yellow-800 dark:text-yellow-300">
-                      <strong>Next Approver:</strong> {nextPendingApprover.approverName} (
-                      {nextPendingApprover.approverEmail}) • {nextPendingApprover.role}
-                    </p>
-                    <p className="text-xs text-yellow-700 dark:text-yellow-400 mt-1">
-                      Sequential approval is enforced. Only the next pending approver can take
-                      action.
-                    </p>
-                  </div>
-                )}
-                <div className="flex gap-4">
-                  <button
-                    onClick={() => openApprovalModal('Approved')}
-                    disabled={actionLoading}
-                    className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    ✓ Approve
-                  </button>
-                  <button
-                    onClick={() => openApprovalModal('Rejected')}
-                    disabled={actionLoading}
-                    className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    ✕ Reject
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Draft Actions */}
-            {request.status === 'Draft' && (
-              <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-6">
-                <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50 mb-4">
-                  Actions
-                </h2>
-                <div className="flex gap-4">
-                  <button
-                    onClick={handleSubmitRequest}
-                    disabled={actionLoading}
-                    className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Submit for Approval
-                  </button>
-                  <button
-                    onClick={handleDeleteRequest}
-                    disabled={actionLoading}
-                    className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Delete Draft
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Right Column - Approvers */}
-          <div className="space-y-6">
-            {/* Approvers Timeline */}
-            <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-6">
-              <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50 mb-4">
-                Approval Flow
-              </h2>
-              {request.approvers.length === 0 ? (
-                <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                  No approvers assigned yet
-                </p>
-              ) : (
-                <div className="space-y-4">
-                  {request.approvers.map((approver, index) => (
-                    <div key={approver.id} className="relative">
-                      {/* Connector line */}
-                      {index < request.approvers.length - 1 && (
-                        <div className="absolute left-4 top-10 w-0.5 h-full bg-zinc-200 dark:bg-zinc-700" />
-                      )}
-
-                      <div className="flex gap-3">
-                        {/* Status indicator */}
-                        <div className="relative z-10">
-                          <div
-                            className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
-                              approver.status === 'Approved'
-                                ? 'bg-green-500 text-white'
-                                : approver.status === 'Rejected'
-                                ? 'bg-red-500 text-white'
-                                : 'bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-400'
-                            }`}
-                          >
-                            {approver.sequence}
-                          </div>
+        {/* Right column — approval flow */}
+        <div className="space-y-6">
+          <section className="glass rounded-xl p-6">
+            <h2 className="mb-5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Approval flow</h2>
+            {request.approvers.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No approvers assigned.</p>
+            ) : (
+              <ol className="relative">
+                {request.approvers.map((a, i) => {
+                  const isCurrent = a.status === 'Pending' && nextPending?.id === a.id
+                  const last = i === request.approvers.length - 1
+                  return (
+                    <li key={a.id} className="relative flex gap-4 pb-6 last:pb-0">
+                      {!last && <span className="absolute left-[15px] top-9 h-[calc(100%-1.5rem)] w-px bg-border" aria-hidden />}
+                      <Node status={a.status} sequence={a.sequence} current={isCurrent} />
+                      <div className="flex-1 pt-0.5">
+                        <div className="text-sm font-medium text-foreground">{a.approverName}</div>
+                        <div className="text-xs text-muted-foreground">{a.approverEmail}</div>
+                        <div className="mt-1 flex items-center gap-2">
+                          <span className="text-[11px] uppercase tracking-wide text-muted-foreground">{a.role}</span>
+                          <StatusBadge status={a.status} />
                         </div>
-
-                        {/* Approver info */}
-                        <div className="flex-1 pb-6">
-                          <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                            {approver.approverName}
-                          </div>
-                          <div className="text-xs text-zinc-600 dark:text-zinc-400">
-                            {approver.approverEmail}
-                          </div>
-                          <div className="text-xs text-zinc-500 dark:text-zinc-500 mt-1">
-                            {approver.role}
-                          </div>
-                          <div className="mt-2">
-                            <span
-                              className={`inline-block px-2 py-1 rounded text-xs font-medium ${getStatusColor(
-                                approver.status
-                              )}`}
-                            >
-                              {approver.status}
-                            </span>
-                          </div>
-                          {approver.actionDate && (
-                            <div className="text-xs text-zinc-500 dark:text-zinc-500 mt-2">
-                              {formatDateTime(approver.actionDate)}
-                            </div>
-                          )}
-                          {approver.comments && (
-                            <div className="mt-2 p-2 bg-zinc-50 dark:bg-zinc-800 rounded text-xs text-zinc-700 dark:text-zinc-300">
-                              {approver.comments}
-                            </div>
-                          )}
-                        </div>
+                        {a.actionDate && <div className="tnum mt-1.5 text-[11px] text-muted-foreground">{formatDateTime(a.actionDate)}</div>}
+                        {a.comments && <p className="mt-2 rounded-md bg-muted/40 p-2.5 text-xs text-foreground ring-1 ring-border/50">“{a.comments}”</p>}
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                    </li>
+                  )
+                })}
+              </ol>
+            )}
+          </section>
 
-            {/* Metadata */}
-            <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-6">
-              <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50 mb-4">
-                Metadata
-              </h2>
-              <dl className="space-y-2 text-sm">
-                <div>
-                  <dt className="text-zinc-500 dark:text-zinc-400">Created</dt>
-                  <dd className="text-zinc-900 dark:text-zinc-100">
-                    {formatDateTime(request.createdAt)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-zinc-500 dark:text-zinc-400">Last Updated</dt>
-                  <dd className="text-zinc-900 dark:text-zinc-100">
-                    {formatDateTime(request.updatedAt)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-zinc-500 dark:text-zinc-400">Request ID</dt>
-                  <dd className="text-zinc-900 dark:text-zinc-100 font-mono text-xs">
-                    {request.id}
-                  </dd>
-                </div>
-              </dl>
-            </div>
-          </div>
+          <section className="glass rounded-xl p-6">
+            <h2 className="mb-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Metadata</h2>
+            <dl className="space-y-3 text-sm">
+              <Field label="Created" value={<span className="tnum">{formatDateTime(request.createdAt)}</span>} />
+              <Field label="Last updated" value={<span className="tnum">{formatDateTime(request.updatedAt)}</span>} />
+              <Field label="Request ID" value={<span className="tnum font-mono text-xs">{request.id}</span>} />
+            </dl>
+          </section>
         </div>
       </div>
 
-      {/* Approval Modal */}
-      {showApprovalModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-6 max-w-md w-full">
-            <h3 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50 mb-4">
-              {actionType === 'Approved' ? 'Approve Request' : 'Reject Request'}
-            </h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                  Your Email <span className="text-red-500">*</span>
+      {/* Approve/Reject modal */}
+      <AnimatePresence>
+        {showApprovalModal && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 p-4 backdrop-blur-sm"
+            onClick={() => !actionLoading && setShowApprovalModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 12 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 26 }}
+              onClick={(e) => e.stopPropagation()}
+              className="glass w-full max-w-md rounded-2xl p-6"
+            >
+              <h3 className="text-lg font-bold tracking-tight text-foreground">
+                {actionType === 'Approved' ? 'Approve request' : 'Reject request'}
+              </h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {actionType === 'Approved'
+                  ? 'Confirm your approval to advance the chain.'
+                  : 'Rejecting will mark the entire request as Rejected.'}
+              </p>
+              <div className="mt-5 space-y-4">
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-muted-foreground">Your email</span>
+                  <input type="email" value={approverEmail} onChange={(e) => setApproverEmail(e.target.value)} placeholder="you@hakeng.sa"
+                    className="w-full rounded-lg border border-input bg-background/60 px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring/40" required />
                 </label>
-                <input
-                  type="email"
-                  value={approverEmail}
-                  onChange={(e) => setApproverEmail(e.target.value)}
-                  className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100"
-                  placeholder="approver@hakeng.com"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                  Comments (Optional)
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-muted-foreground">Comments {actionType === 'Rejected' ? '' : '(optional)'}</span>
+                  <textarea value={comments} onChange={(e) => setComments(e.target.value)} rows={3} placeholder="Add a note…"
+                    className="w-full rounded-lg border border-input bg-background/60 px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring/40" />
                 </label>
-                <textarea
-                  value={comments}
-                  onChange={(e) => setComments(e.target.value)}
-                  rows={3}
-                  className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100"
-                  placeholder="Add any comments..."
-                />
               </div>
-              <div className="flex gap-4 pt-4">
-                <button
-                  onClick={() => {
-                    setShowApprovalModal(false)
-                    setApproverEmail('')
-                    setComments('')
-                  }}
-                  disabled={actionLoading}
-                  className="flex-1 px-4 py-2 bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-lg hover:bg-zinc-300 dark:hover:bg-zinc-600 transition-colors font-medium disabled:opacity-50"
-                >
+              <div className="mt-6 flex gap-3">
+                <button onClick={() => setShowApprovalModal(false)} disabled={actionLoading}
+                  className="flex-1 rounded-lg border border-border bg-background/50 px-4 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted/50 disabled:opacity-50">
                   Cancel
                 </button>
-                <button
-                  onClick={handleApprovalAction}
-                  disabled={actionLoading}
-                  className={`flex-1 px-4 py-2 rounded-lg font-medium text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                <button onClick={handleApprovalAction} disabled={actionLoading}
+                  className={`flex-1 rounded-lg px-4 py-2.5 text-sm font-semibold transition active:scale-[0.98] disabled:opacity-50 ${
                     actionType === 'Approved'
-                      ? 'bg-green-600 hover:bg-green-700'
-                      : 'bg-red-600 hover:bg-red-700'
-                  }`}
-                >
-                  {actionLoading ? 'Processing...' : `Confirm ${actionType}`}
+                      ? 'bg-primary text-primary-foreground hover:brightness-110'
+                      : 'bg-destructive text-destructive-foreground hover:brightness-110'
+                  }`}>
+                  {actionLoading ? 'Processing…' : `Confirm ${actionType === 'Approved' ? 'approval' : 'rejection'}`}
                 </button>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  )
+}
+
+function Field({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div>
+      <dt className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</dt>
+      <dd className="mt-0.5 text-sm text-foreground">{value}</dd>
     </div>
+  )
+}
+
+function Node({ status, sequence, current }: { status: string; sequence: number; current: boolean }) {
+  if (status === 'Approved')
+    return (
+      <span className="z-10 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground ring-4 ring-primary/15">
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+      </span>
+    )
+  if (status === 'Rejected')
+    return (
+      <span className="z-10 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-destructive text-destructive-foreground ring-4 ring-destructive/15">
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" /></svg>
+      </span>
+    )
+  return (
+    <span className={`z-10 grid h-8 w-8 shrink-0 place-items-center rounded-full text-sm font-semibold ${
+      current ? 'bg-warning/15 text-warning-foreground ring-4 ring-warning/20' : 'bg-muted text-muted-foreground ring-4 ring-background'
+    }`}>
+      {sequence}
+    </span>
   )
 }

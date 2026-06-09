@@ -19,6 +19,10 @@
   --accent-foreground: oklch(0.4254 0.1159 144.3078);
   --destructive: oklch(0.5386 0.1937 26.7249);
   --destructive-foreground: oklch(1.0000 0 0);
+  /* semantic status color for the in-progress "Pending Approval" state
+     (the one status the green palette cannot distinguish on its own) */
+  --warning: oklch(0.7686 0.1647 70.0804);
+  --warning-foreground: oklch(0.3000 0.0500 70.0000);
   --border: oklch(0.8805 0.0208 74.6428);
   --input: oklch(0.8805 0.0208 74.6428);
   --ring: oklch(0.5234 0.1347 144.1672);
@@ -74,6 +78,8 @@
   --accent-foreground: oklch(0.9423 0.0097 72.6595);
   --destructive: oklch(0.5386 0.1937 26.7249);
   --destructive-foreground: oklch(0.9423 0.0097 72.6595);
+  --warning: oklch(0.8000 0.1500 75.0000);
+  --warning-foreground: oklch(0.2400 0.0400 70.0000);
   --border: oklch(0.3942 0.0265 142.9926);
   --input: oklch(0.3942 0.0265 142.9926);
   --ring: oklch(0.6731 0.1624 144.2083);
@@ -127,6 +133,8 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -167,7 +175,48 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    scroll-behavior: smooth;
+  }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    /* depth, not a flat fill: two faint radial washes built from the theme's
+       own primary/accent tokens — never a new hue */
+    background-image:
+      radial-gradient(60rem 60rem at 88% -8%, color-mix(in oklch, var(--primary) 12%, transparent), transparent 60%),
+      radial-gradient(48rem 48rem at -6% 8%, color-mix(in oklch, var(--accent) 14%, transparent), transparent 55%);
+    background-attachment: fixed;
+  }
+  ::selection {
+    background: color-mix(in oklch, var(--primary) 28%, transparent);
+  }
+}
+
+@utility tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* theme-faithful glass surface: translucent card + blur + hairline lit edge */
+@utility glass {
+  background: color-mix(in oklch, var(--card) 72%, transparent);
+  backdrop-filter: blur(16px) saturate(140%);
+  border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
+  box-shadow:
+    var(--shadow-lg),
+    inset 0 1px 0 color-mix(in oklch, white 8%, transparent);
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .glass {
+    background: var(--card);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
   }
 }

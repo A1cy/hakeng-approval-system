@@ -164,9 +164,9 @@ The seed script creates 3 test users:
 
 | Name | Email | Department |
 |------|-------|------------|
-| John Doe | john.doe@hakeng.com | Engineering |
-| Jane Smith | jane.smith@hakeng.com | Finance |
-| Bob Manager | bob.manager@hakeng.com | Management |
+| Abdullah Al-Qahtani | abdullah.alqahtani@hakeng.sa | Engineering |
+| Mohammed Al-Otaibi | mohammed.alotaibi@hakeng.sa | Finance |
+| Khalid Al-Harbi | khalid.alharbi@hakeng.sa | Management |
 
 ## 🎨 Custom Theme
 

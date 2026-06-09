@@ -13,21 +13,21 @@ import { prisma } from '../lib/prisma'
  */
 async function main() {
   // --- Users (upserted; safe to re-run) ----------------------------------
-  const [john, jane, bob] = await Promise.all([
+  const [abdullah, mohammed, khalid] = await Promise.all([
     prisma.user.upsert({
-      where: { email: 'john.doe@hakeng.com' },
-      update: {},
-      create: { email: 'john.doe@hakeng.com', name: 'John Doe', department: 'Engineering' },
+      where: { email: 'abdullah.alqahtani@hakeng.sa' },
+      update: { name: 'Abdullah Al-Qahtani', department: 'Engineering' },
+      create: { email: 'abdullah.alqahtani@hakeng.sa', name: 'Abdullah Al-Qahtani', department: 'Engineering' },
     }),
     prisma.user.upsert({
-      where: { email: 'jane.smith@hakeng.com' },
-      update: {},
-      create: { email: 'jane.smith@hakeng.com', name: 'Jane Smith', department: 'Finance' },
+      where: { email: 'mohammed.alotaibi@hakeng.sa' },
+      update: { name: 'Mohammed Al-Otaibi', department: 'Finance' },
+      create: { email: 'mohammed.alotaibi@hakeng.sa', name: 'Mohammed Al-Otaibi', department: 'Finance' },
     }),
     prisma.user.upsert({
-      where: { email: 'bob.manager@hakeng.com' },
-      update: {},
-      create: { email: 'bob.manager@hakeng.com', name: 'Bob Manager', department: 'Management' },
+      where: { email: 'khalid.alharbi@hakeng.sa' },
+      update: { name: 'Khalid Al-Harbi', department: 'Management' },
+      create: { email: 'khalid.alharbi@hakeng.sa', name: 'Khalid Al-Harbi', department: 'Management' },
     }),
   ])
 
@@ -44,7 +44,7 @@ async function main() {
     data: {
       title: 'Q3 Vendor Contract Review',
       requestType: 'Contract Review',
-      requestedById: john.id,
+      requestedById: abdullah.id,
       department: 'Engineering',
       priority: 'High',
       dueDate: day(5),
@@ -55,9 +55,9 @@ async function main() {
       remarks: 'Annual supply agreement — legal + finance sign-off required before signature.',
       approvers: {
         create: [
-          { approverName: 'Jane Smith', approverEmail: 'jane.smith@hakeng.com', role: 'Reviewer', sequence: 1, status: 'Approved', comments: 'Figures reconcile with the FY budget.', actionDate: day(-1) },
-          { approverName: 'Bob Manager', approverEmail: 'bob.manager@hakeng.com', role: 'Approver', sequence: 2, status: 'Pending' },
-          { approverName: 'John Doe', approverEmail: 'john.doe@hakeng.com', role: 'Signatory', sequence: 3, status: 'Pending' },
+          { approverName: 'Mohammed Al-Otaibi', approverEmail: 'mohammed.alotaibi@hakeng.sa', role: 'Reviewer', sequence: 1, status: 'Approved', comments: 'Figures reconcile with the FY budget.', actionDate: day(-1) },
+          { approverName: 'Khalid Al-Harbi', approverEmail: 'khalid.alharbi@hakeng.sa', role: 'Approver', sequence: 2, status: 'Pending' },
+          { approverName: 'Abdullah Al-Qahtani', approverEmail: 'abdullah.alqahtani@hakeng.sa', role: 'Signatory', sequence: 3, status: 'Pending' },
         ],
       },
     },
@@ -68,7 +68,7 @@ async function main() {
     data: {
       title: 'Office Lease — Jeddah HQ Signature',
       requestType: 'Signature Request',
-      requestedById: bob.id,
+      requestedById: khalid.id,
       department: 'Management',
       priority: 'Medium',
       dueDate: day(-2),
@@ -79,8 +79,8 @@ async function main() {
       remarks: 'Three-year lease renewal.',
       approvers: {
         create: [
-          { approverName: 'Jane Smith', approverEmail: 'jane.smith@hakeng.com', role: 'Approver', sequence: 1, status: 'Approved', comments: 'Within approved budget.', actionDate: day(-4) },
-          { approverName: 'John Doe', approverEmail: 'john.doe@hakeng.com', role: 'Signatory', sequence: 2, status: 'Approved', comments: 'Signed.', actionDate: day(-3) },
+          { approverName: 'Mohammed Al-Otaibi', approverEmail: 'mohammed.alotaibi@hakeng.sa', role: 'Approver', sequence: 1, status: 'Approved', comments: 'Within approved budget.', actionDate: day(-4) },
+          { approverName: 'Abdullah Al-Qahtani', approverEmail: 'abdullah.alqahtani@hakeng.sa', role: 'Signatory', sequence: 2, status: 'Approved', comments: 'Signed.', actionDate: day(-3) },
         ],
       },
     },
@@ -91,7 +91,7 @@ async function main() {
     data: {
       title: 'Marketing Brochure — Client Submission',
       requestType: 'Client Submission',
-      requestedById: jane.id,
+      requestedById: mohammed.id,
       department: 'Finance',
       priority: 'Low',
       dueDate: day(3),
@@ -102,8 +102,8 @@ async function main() {
       remarks: 'Pricing table needs correction before resubmission.',
       approvers: {
         create: [
-          { approverName: 'Bob Manager', approverEmail: 'bob.manager@hakeng.com', role: 'Reviewer', sequence: 1, status: 'Approved', comments: 'Copy looks good.', actionDate: day(-2) },
-          { approverName: 'John Doe', approverEmail: 'john.doe@hakeng.com', role: 'Approver', sequence: 2, status: 'Rejected', comments: 'Pricing table is out of date — please correct and raise a new request.', actionDate: day(-1) },
+          { approverName: 'Khalid Al-Harbi', approverEmail: 'khalid.alharbi@hakeng.sa', role: 'Reviewer', sequence: 1, status: 'Approved', comments: 'Copy looks good.', actionDate: day(-2) },
+          { approverName: 'Abdullah Al-Qahtani', approverEmail: 'abdullah.alqahtani@hakeng.sa', role: 'Approver', sequence: 2, status: 'Rejected', comments: 'Pricing table is out of date — please correct and raise a new request.', actionDate: day(-1) },
         ],
       },
     },
@@ -114,7 +114,7 @@ async function main() {
     data: {
       title: 'Internal Remote-Work Policy Update',
       requestType: 'Internal Approval',
-      requestedById: john.id,
+      requestedById: abdullah.id,
       department: 'Engineering',
       priority: 'Medium',
       dueDate: day(10),
@@ -123,7 +123,7 @@ async function main() {
       remarks: 'Draft for HR review.',
       approvers: {
         create: [
-          { approverName: 'Bob Manager', approverEmail: 'bob.manager@hakeng.com', role: 'Approver', sequence: 1, status: 'Pending' },
+          { approverName: 'Khalid Al-Harbi', approverEmail: 'khalid.alharbi@hakeng.sa', role: 'Approver', sequence: 1, status: 'Pending' },
         ],
       },
     },
