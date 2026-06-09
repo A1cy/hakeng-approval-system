@@ -1,0 +1,60 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// User model for basic authentication
+model User {
+  id         String   @id @default(cuid())
+  email      String   @unique
+  name       String
+  department String
+  createdAt  DateTime @default(now())
+
+  requests DocumentRequest[]
+}
+
+// Document Request model - 11 fields as per PDF spec
+model DocumentRequest {
+  id                   String   @id @default(cuid())
+  title                String
+  requestType          String   // "Internal Approval", "Client Submission", "Contract Review", "Signature Request"
+  requestedById        String
+  requestedBy          User     @relation(fields: [requestedById], references: [id])
+  department           String
+  priority             String   // "Low", "Medium", "High"
+  dueDate              DateTime
+  externalPartyName    String?
+  externalPartyContact String?  // Email or WhatsApp
+  pdfPath              String
+  status               String   @default("Draft") // "Draft", "Pending Approval", "Approved", "Rejected"
+  remarks              String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  approvers Approver[]
+}
+
+// Approver model - 8 fields as per PDF spec
+model Approver {
+  id                String   @id @default(cuid())
+  documentRequestId String
+  documentRequest   DocumentRequest @relation(fields: [documentRequestId], references: [id], onDelete: Cascade)
+  approverName      String
+  approverEmail     String
+  role              String   // "Reviewer", "Approver", "Signatory"
+  sequence          Int
+  status            String   @default("Pending") // "Pending", "Approved", "Rejected"
+  comments          String?
+  actionDate        DateTime?
+  createdAt         DateTime @default(now())
+
+  @@unique([documentRequestId, sequence])
+}
