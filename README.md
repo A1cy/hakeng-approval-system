@@ -168,7 +168,6 @@ npm run build  # production build
 
 ## Further reading
 
-- [PART1_REQUIREMENTS_THINKING.md](./PART1_REQUIREMENTS_THINKING.md) — clarification questions and assumptions
-- [PART3_ERP_ANSWERS.md](./PART3_ERP_ANSWERS.md) — ERP / Frappe mapping
-- [DESIGN_DECISIONS.md](./DESIGN_DECISIONS.md) — the reasoning behind each choice
-- [ASSUMPTIONS.md](./ASSUMPTIONS.md) — requirement interpretations and tradeoffs
+- [PART1_REQUIREMENTS_THINKING.md](./PART1_REQUIREMENTS_THINKING.md) — Part 1: clarification questions and assumptions
+- [DESIGN_DECISIONS.md](./DESIGN_DECISIONS.md) — the reasoning behind each technical choice
+- [PART3_ERP_ANSWERS.md](./PART3_ERP_ANSWERS.md) — Part 3: ERP / Frappe mapping
