@@ -47,6 +47,8 @@ next-env.d.ts
 # uploaded PDFs (keep the dir, ignore contents)
 /public/uploads/*
 !/public/uploads/.gitkeep
+# ship the demo sample PDF so seeded requests' attachment link resolves
+!/public/uploads/sample-contract.pdf
 
 # local SQLite db — Prisma CLI writes to prisma/, Next runtime to root, so ignore both
 *.db

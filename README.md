@@ -15,6 +15,22 @@ This system implements a **sequential approval workflow** for document requests 
 - ✅ **4 workflow states**: Draft, Pending Approval, Approved, Rejected
 - ✅ **Comprehensive reporting** with filters and status tracking
 
+## 📸 Screenshots
+
+> Captured from the running app against the demo seed data (`npm run db:seed`).
+
+**Document Requests — list / report view** (all 7 PDF columns: Title, Requested By, Department, Status, Current Pending Approver, Due Date, Aging; plus filters):
+
+![List view](./screenshots/01-list-view.png)
+
+**Request detail — mid-approval** (sequential timeline: approver 1 Approved, approver 2 is the current "Next Approver"; rejection/approval actions gated to the current approver):
+
+![Detail view, pending approval](./screenshots/02-detail-pending-approval.png)
+
+**Create request form** (all fields, PDF upload, sequential approver builder):
+
+![Create request form](./screenshots/03-create-request-form.png)
+
 ## 🏗️ Architecture
 
 ### Tech Stack
@@ -27,7 +43,8 @@ This system implements a **sequential approval workflow** for document requests 
 **Backend:**
 - **Next.js API Routes** - RESTful API endpoints
 - **Prisma 5.22** - Type-safe ORM
-- **SQLite** - Lightweight database for development
+- **PostgreSQL** - relational database (Neon / Vercel Postgres in production)
+- **Vercel Blob** - object storage for PDF uploads (serverless-friendly)
 
 ### Project Structure
 
@@ -105,7 +122,8 @@ hakeng-approval-system/
 
 1. **Clone the repository**
    ```bash
-   cd "/mnt/c/A1 Codes/hakeng - Full stack developer case study/hakeng-approval-system"
+   git clone <repository-url>
+   cd hakeng-approval-system
    ```
 
 2. **Install dependencies**
@@ -113,21 +131,23 @@ hakeng-approval-system/
    npm install
    ```
 
-3. **Set up environment variables**
+3. **Set up environment variables** (copy `.env.example` → `.env`)
    ```bash
-   # .env file should contain:
-   DATABASE_URL="file:./dev.db"
+   # Point at any PostgreSQL instance (a free Neon database or local Docker):
+   DATABASE_URL="postgresql://user:password@host:5432/hakeng?schema=public"
+   # Optional locally (only needed to test PDF upload): a Vercel Blob token.
+   # BLOB_READ_WRITE_TOKEN="vercel_blob_rw_..."
    ```
 
 4. **Initialize database**
    ```bash
    # Generate Prisma client
    npx prisma generate
-   
-   # Run migrations
-   npx prisma migrate dev --name init
-   
-   # Seed test users
+
+   # Create the tables from the schema
+   npx prisma db push
+
+   # Seed 3 users + 4 demo requests (one per status)
    npm run db:seed
    ```
 
@@ -166,18 +186,25 @@ Theme is defined in `app/globals.css` and applied via Tailwind CSS.
 
 **Implementation:**
 
-**Backend** (`app/api/requests/[id]/approve/route.ts`):
+**Backend** — the guard is a pure, unit-tested function in `lib/workflows.ts` (`canActOnApproval`), applied by `app/api/requests/[id]/approve/route.ts`:
 ```typescript
-// Find prior pending approvers
-const priorPendingApprover = documentRequest.approvers.find(
+// lib/workflows.ts — only the lowest-sequence Pending approver may act
+const priorPending = approvers.find(
   (a) => a.sequence < approver.sequence && a.status === 'Pending'
 )
 
-if (priorPendingApprover) {
-  return NextResponse.json({
-    success: false,
-    error: `Cannot approve out of sequence. ${priorPendingApprover.approverName} (sequence ${priorPendingApprover.sequence}) must approve first.`
-  }, { status: 400 })
+if (priorPending) {
+  return {
+    allowed: false,
+    code: 403, // forbidden — not this approver's turn
+    error: `It is not your turn to approve. ${priorPending.approverName} (sequence ${priorPending.sequence}) must act first.`,
+  }
+}
+
+// app/api/requests/[id]/approve/route.ts — the route applies the guard
+const guard = canActOnApproval(documentRequest.approvers, approverEmail, documentRequest.status)
+if (!guard.allowed) {
+  return NextResponse.json({ success: false, error: guard.error }, { status: guard.code ?? 400 })
 }
 ```
 
@@ -202,9 +229,9 @@ Before a request can be submitted (`POST /api/requests/[id]/submit`):
 **Features:**
 - File type validation (PDF only)
 - Size limit: 10MB
-- Unique filename generation (timestamp-based)
-- Storage: `public/uploads/`
-- Returns public URL for viewing/downloading
+- Unique object key (random suffix to avoid collisions)
+- Storage: **Vercel Blob** (serverless-friendly object store) — returns a public URL saved on the request
+- The seeded demo requests reference a committed static sample at `/uploads/sample-contract.pdf`, so attachment links resolve without any upload
 
 ### 4. Dynamic Approver Management
 
@@ -235,14 +262,14 @@ Pending Approval ──→ [Any Reject] ──→ Rejected
 - Priority (Low, Medium, High)
 - Department (text search)
 
-**7-column table:**
-1. Title (with requester name)
-2. Type
+**7 columns (per PDF Feature 10), plus an Actions link:**
+1. Title (request type shown beneath)
+2. Requested By
 3. Department
-4. Priority (color-coded)
-5. Due Date
-6. Status (badge)
-7. Actions (View Details link)
+4. Status (color-coded badge)
+5. Current Pending Approver (lowest-sequence approver still "Pending"; shows "N/A" once the request is terminal)
+6. Due Date (overdue dates highlighted in red)
+7. Aging in Days (whole calendar days since creation)
 
 ## 📡 API Endpoints
 
@@ -341,10 +368,8 @@ See [PART3_ERP_ANSWERS.md](./PART3_ERP_ANSWERS.md) — answers to all six concep
 
 1. **No Authentication**: Simplified user model (email-based identification)
 2. **No Email Notifications**: Would use Resend or SendGrid in production
-3. **Local File Storage**: PDFs stored in `public/uploads/` (use S3 in production)
-4. **Single Tenant**: Multi-company support designed but not implemented
-5. **No Real-time Updates**: Would use WebSockets or polling in production
-6. **SQLite Database**: Use PostgreSQL for production
+3. **Single Tenant**: Multi-company support designed but not implemented
+4. **No Real-time Updates**: Would use WebSockets or polling in production
 
 ## 🎯 Production Readiness Checklist
 

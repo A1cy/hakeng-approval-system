@@ -1,84 +1,60 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { writeFile, mkdir } from 'fs/promises'
-import { existsSync } from 'fs'
-import path from 'path'
+import { put } from '@vercel/blob'
 
-// POST /api/upload - Upload PDF file
+// POST /api/upload - Upload a PDF to Vercel Blob storage.
+// Vercel's serverless filesystem is read-only, so uploads go to Blob (a managed
+// object store). The returned public URL is saved on the request's pdfPath.
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()
-    const file = formData.get('file') as File
+    const file = formData.get('file') as File | null
 
     if (!file) {
       return NextResponse.json(
-        {
-          success: false,
-          error: 'No file provided',
-        },
+        { success: false, error: 'No file provided' },
         { status: 400 }
       )
     }
 
-    // Validate file type
-    if (!file.name.toLowerCase().endsWith('.pdf')) {
+    // Validate file type — PDF only
+    if (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf') {
       return NextResponse.json(
-        {
-          success: false,
-          error: 'Only PDF files are allowed',
-        },
+        { success: false, error: 'Only PDF files are allowed' },
         { status: 400 }
       )
     }
 
     // Validate file size (max 10MB)
-    const maxSize = 10 * 1024 * 1024 // 10MB
+    const maxSize = 10 * 1024 * 1024
     if (file.size > maxSize) {
       return NextResponse.json(
-        {
-          success: false,
-          error: 'File size exceeds 10MB limit',
-        },
+        { success: false, error: 'File size exceeds 10MB limit' },
         { status: 400 }
       )
     }
 
-    // Create uploads directory if it doesn't exist
-    const uploadsDir = path.join(process.cwd(), 'public', 'uploads')
-    if (!existsSync(uploadsDir)) {
-      await mkdir(uploadsDir, { recursive: true })
-    }
-
-    // Generate unique filename with timestamp
-    const timestamp = Date.now()
+    // Unique, sanitized object key. `addRandomSuffix` guards against collisions.
     const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
-    const filename = `${timestamp}_${sanitizedName}`
-    const filepath = path.join(uploadsDir, filename)
-
-    // Convert file to buffer and write
-    const bytes = await file.arrayBuffer()
-    const buffer = Buffer.from(bytes)
-    await writeFile(filepath, buffer)
-
-    // Return public URL
-    const publicUrl = `/uploads/${filename}`
+    const blob = await put(`requests/${sanitizedName}`, file, {
+      access: 'public',
+      addRandomSuffix: true,
+      contentType: 'application/pdf',
+    })
 
     return NextResponse.json({
       success: true,
       message: 'File uploaded successfully',
       data: {
-        filename,
-        path: publicUrl,
+        filename: sanitizedName,
+        path: blob.url, // public Blob URL, stored on the request
         size: file.size,
-        mimeType: file.type,
+        mimeType: 'application/pdf',
       },
     })
   } catch (error) {
     console.error('Error uploading file:', error)
     return NextResponse.json(
-      {
-        success: false,
-        error: 'Failed to upload file',
-      },
+      { success: false, error: 'Failed to upload file' },
       { status: 500 }
     )
   }

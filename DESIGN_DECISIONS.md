@@ -42,19 +42,24 @@ dependency-free functions**:
 3. The rules are unit-testable with **no database and no HTTP server** — 39 tests
    run in ~11 ms, covering every branch of the state machine.
 
-## 3. Why SQLite (not PostgreSQL/MySQL/MongoDB)?
+## 3. Why PostgreSQL (not MySQL/MongoDB/SQLite)?
 
-- **Zero setup** for a reviewer — `npx prisma migrate dev` creates the DB file;
-  no Docker, no connection string to provision. Setup is < 5 minutes.
+The prototype began on SQLite for zero-setup local dev, then moved to **PostgreSQL**
+so it could run on Vercel's serverless platform (SQLite needs a writable file the
+serverless filesystem doesn't provide). Prisma made this a one-line `datasource`
+change — the query code and business logic were untouched.
+
 - **Relational fit.** The data is inherently relational (Request 1—N Approvers
   with a unique `(requestId, sequence)` constraint). A document store (MongoDB)
   would make the sequence-integrity constraint harder to enforce.
-- **Prisma keeps it portable.** Switching to PostgreSQL for production is a
-  one-line `datasource` change plus a re-migrate; the query code is unchanged.
+- **Serverless-ready.** Postgres (Neon / Vercel Postgres) is connection-poolable
+  and works from Vercel functions; SQLite does not.
+- **Schema sync via `prisma db push`** keeps the prototype simple — no migration
+  files to maintain — while still giving a typed, enforced schema.
 
-**Why not Prisma 7?** Prisma 7's "client" engine requires a driver adapter for
-SQLite, which added configuration friction with no payoff for a prototype.
-Pinned to the stable **Prisma 5.22** to keep the focus on business logic.
+**Why not Prisma 7?** Prisma 7's "client" engine requires a driver adapter, which
+added configuration friction with no payoff for a prototype. Pinned to the stable
+**Prisma 5.22** to keep the focus on business logic.
 
 ## 4. Why sequential (not parallel) approvals?
 
@@ -77,17 +82,21 @@ delegate to the same `canActOnApproval` guard, then set the approver's status to
 `Approved` / `Rejected` respectively and recompute the request status. The split
 keeps each route's intent obvious and matches the spec exactly.
 
-## 6. Why local file storage (not S3)?
+## 6. Why Vercel Blob for uploads (not local disk / S3)?
 
-PDFs are written to `public/uploads/` with a timestamped, sanitized filename.
+User-uploaded PDFs go to **Vercel Blob**, a managed object store, because Vercel's
+serverless filesystem is read-only — writing to `public/uploads/` works locally but
+fails in production. `/api/upload` validates the PDF (mime/extension + 10 MB cap),
+calls `put()` with a random suffix, and stores the returned public URL on `pdfPath`.
 
-- **No external dependency** for a prototype — a reviewer needs no AWS account.
-- **Validated at the edge:** PDF mime/extension check + 10 MB cap in
-  `/api/upload`.
+The seeded demo requests instead reference a **committed static sample**
+(`public/uploads/sample-contract.pdf`), so their attachment links resolve in both
+local dev and the live deploy without anyone uploading anything.
 
-**Production path:** swap the upload handler for S3/R2 with signed URLs. The
-`pdfPath` field already stores an opaque path, so the rest of the system is
-storage-agnostic.
+Because `pdfPath` is just a URL string, the system is storage-agnostic — Blob, a
+static asset, or a future S3/R2 signed URL all work without touching the rest of
+the app. **Tradeoff:** Blob is Vercel-specific; on another host the upload handler
+would swap to that platform's blob/S3 equivalent.
 
 ## 7. Why no authentication (email-based actor)?
 
@@ -123,6 +132,18 @@ from.
 
 None of these touch the core approval correctness, which is fully implemented
 and tested.
+
+## 10. Demo seed data
+
+`prisma/seed.ts` seeds 3 users **and** 4 Document Requests covering every status
+(Draft, Pending Approval mid-flow, Approved, Rejected) with realistic approver
+chains. This makes the list/report view and the approval timeline populated the
+moment a reviewer runs `npm run db:seed` — no manual data entry needed to
+evaluate the workflow — and is what the README screenshots are captured from. The
+seed is idempotent (it clears existing requests first) and approver emails reuse
+the seeded users' emails so a reviewer can immediately act as the current pending
+approver. A small valid placeholder PDF ships at
+`public/uploads/sample-contract.pdf` so the attachment link resolves.
 
 ---
 
