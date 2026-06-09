@@ -35,9 +35,9 @@ function futureDate(days) {
 async function main() {
   console.log('\n=== HAK Approval System — E2E verification ===\n')
 
-  // Get a real seeded user
+  // Get a real seeded user to act as the requester
   const users = (await api('GET', '/api/users')).json.data
-  const john = users.find((u) => u.email === 'john.doe@hakeng.com')
+  const john = users.find((u) => u.email === 'abdullah.alqahtani@hakeng.sa') ?? users[0]
   check('Seeded users present', users.length >= 3)
 
   // --- Scenario A: Happy path (3 approvers, sequential approve → Approved) ---

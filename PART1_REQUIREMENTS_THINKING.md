@@ -55,7 +55,7 @@ user, followed by the assumptions I made to proceed within the time box.
 ## Assumptions
 
 Because this is a time-boxed prototype, I proceeded on the following assumptions.
-(Full detail and rationale in [ASSUMPTIONS.md](./ASSUMPTIONS.md).)
+(The reasoning behind the technical choices is in [DESIGN_DECISIONS.md](./DESIGN_DECISIONS.md).)
 
 **Authentication**
 - No real auth in the prototype; the acting approver is identified by email
@@ -70,8 +70,8 @@ Because this is a time-boxed prototype, I proceeded on the following assumptions
   edited/deleted by the creator.
 
 **File handling**
-- One PDF per request, max 10 MB, stored on the local filesystem with the path
-  saved on the record. No versioning or virus scanning in the prototype.
+- One PDF per request, max 10 MB, uploaded to object storage (Vercel Blob) with
+  the returned URL saved on the record. No versioning or virus scanning in the prototype.
 
 **Notifications**
 - Out of scope for the prototype (would be email in production). The "Current
@@ -96,6 +96,6 @@ Because this is a time-boxed prototype, I proceeded on the following assumptions
   whose status is still "Pending".
 
 **Stack**
-- Next.js (App Router) full-stack + Prisma + SQLite for the prototype, chosen for
-  fast setup and zero external services. See [DESIGN_DECISIONS.md](./DESIGN_DECISIONS.md)
-  for the reasoning and the production swap-out path.
+- Next.js (App Router) full-stack + Prisma over PostgreSQL (Neon), with PDFs in
+  Vercel Blob — deployed on Vercel. See [DESIGN_DECISIONS.md](./DESIGN_DECISIONS.md)
+  for the reasoning behind each choice.

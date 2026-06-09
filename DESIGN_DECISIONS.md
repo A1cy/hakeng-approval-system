@@ -1,8 +1,7 @@
 # Design Decisions
 
-A concise explanation of the **why** behind the key architectural choices. (For
-the broader list of requirement interpretations and constraints, see
-[ASSUMPTIONS.md](./ASSUMPTIONS.md).)
+The **why** behind the key architectural choices. (Clarification questions and
+assumptions are in [PART1_REQUIREMENTS_THINKING.md](./PART1_REQUIREMENTS_THINKING.md).)
 
 ---
 
