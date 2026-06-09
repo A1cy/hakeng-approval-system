@@ -26,6 +26,24 @@ Demo approver emails: `abdullah.alqahtani@hakeng.sa`, `mohammed.alotaibi@hakeng.
 
 > Neon's free tier auto-suspends when idle, so the first request after a pause may take ~1s to wake.
 
+## Screenshots
+
+**Request report** — all seven required columns, status counts, and filters:
+
+![Requests list](./screenshots/01-requests-list.png)
+
+**Request detail, mid-approval** — sequential timeline (Mohammed approved, Khalid is current, Abdullah waiting); only the current approver can act:
+
+![Request detail, pending approval](./screenshots/02-detail-pending-approval.png)
+
+**Rejected request** — one rejection rejects the whole request, with the approver's comment recorded:
+
+![Rejected request](./screenshots/04-detail-rejected.png)
+
+**Create request** — all fields, PDF upload, and the sequential approver builder:
+
+![Create request](./screenshots/03-create-request.png)
+
 ## Architecture
 
 **Stack:** Next.js 16 (App Router) + TypeScript, Prisma 5 ORM over PostgreSQL (Neon / Vercel Postgres), Vercel Blob for PDF storage, Tailwind CSS 4.
