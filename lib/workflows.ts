@@ -4,7 +4,7 @@
  * This module holds the CORE business logic of the system, kept free of any
  * database or framework dependency so it can be unit-tested in isolation.
  *
- * Business rules (from the PDF spec):
+ * Business rules:
  *  - Approvers act in strict sequence (1 → 2 → 3 ...). Only the lowest-sequence
  *    approver still "Pending" may act.
  *  - One rejection rejects the whole request; no later approver may then act.
@@ -165,8 +165,8 @@ export function computeRequestStatus(approversAfterAction: ApproverLike[]): Requ
 }
 
 /**
- * Validates a request is eligible to be submitted for approval.
- * Mirrors Required Feature 5 (PDF must exist, ≥1 approver) plus integrity checks.
+ * Validates a request is eligible to be submitted for approval:
+ * a PDF must be attached and at least one approver must exist, plus integrity checks.
  */
 export function validateSubmission(input: SubmissionInput): ValidationResult {
   const errors: string[] = []

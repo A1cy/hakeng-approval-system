@@ -21,7 +21,7 @@ model User {
   requests DocumentRequest[]
 }
 
-// Document Request model - 11 fields as per PDF spec
+// Document request — the parent record an employee submits for approval
 model DocumentRequest {
   id                   String   @id @default(cuid())
   title                String
@@ -42,7 +42,7 @@ model DocumentRequest {
   approvers Approver[]
 }
 
-// Approver model - 8 fields as per PDF spec
+// Approver — one ordered step in a request's approval chain
 model Approver {
   id                String   @id @default(cuid())
   documentRequestId String

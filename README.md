@@ -1,166 +1,95 @@
-# HAK Engineering - Document Approval Workflow System
+# HAK Engineering — Document Approval Workflow
 
-A full-stack document request and approval system with sequential approver workflow, PDF attachments, and comprehensive reporting.
+A document request and approval system with a strict sequential approver workflow, PDF attachments, and a filterable request report.
 
-## 🎯 Project Overview
+## Overview
 
-This system implements a **sequential approval workflow** for document requests within HAK Engineering. Key features:
+Employees raise a document request, attach a PDF, assign an ordered list of approvers, and submit it. Approvers then act one at a time in sequence — only the current pending approver can approve or reject. Any rejection rejects the whole request; once every approver has approved, the request is approved.
 
-- ✅ **11-field Document Request** entity (as per requirements)
-- ✅ **8-field Approver** entity with sequential processing
-- ✅ **Sequential approval enforcement** (approvers must act in order)
-- ✅ **PDF upload** and attachment management
-- ✅ **4 request types**: Internal Approval, Client Submission, Contract Review, Signature Request
-- ✅ **3 priority levels**: Low, Medium, High
-- ✅ **4 workflow states**: Draft, Pending Approval, Approved, Rejected
-- ✅ **Comprehensive reporting** with filters and status tracking
+- Document request with 11 fields; approver child records with 8 fields
+- Strict sequential approval — only the lowest-sequence pending approver may act
+- PDF upload and attachment per request
+- Request types: Internal Approval, Client Submission, Contract Review, Signature Request
+- Priorities: Low, Medium, High
+- States: Draft, Pending Approval, Approved, Rejected
+- Request report with filters, current pending approver, and aging
 
-## 🌐 Live Demo
+## Live demo
 
-**https://hakeng-approval-system.vercel.app** — deployed on Vercel with a Neon
-Postgres database, pre-seeded with demo data (3 users + 4 requests covering every
-status). Try the full workflow live:
+**https://hakeng-approval-system.vercel.app** — deployed on Vercel with a Neon Postgres database, pre-seeded with demo data (3 users + 4 requests, one per status). To try the workflow:
 
-1. Open a **Pending Approval** request (e.g. *Q3 Vendor Contract Review*).
-2. Approve as the **wrong** approver → blocked ("not your turn").
-3. Approve as the current approver → the chain advances; approve to the end → **Approved**.
+1. Open a Pending Approval request (e.g. *Q3 Vendor Contract Review*).
+2. Approve as the wrong approver → blocked ("not your turn").
+3. Approve as the current approver → the chain advances; approve to the end → Approved.
 
-Demo approver emails: `abdullah.alqahtani@hakeng.sa`, `mohammed.alotaibi@hakeng.sa`,
-`khalid.alharbi@hakeng.sa`.
+Demo approver emails: `abdullah.alqahtani@hakeng.sa`, `mohammed.alotaibi@hakeng.sa`, `khalid.alharbi@hakeng.sa`.
 
-> Neon's free tier auto-suspends when idle, so the first request after a pause may
-> take ~1s to wake.
+> Neon's free tier auto-suspends when idle, so the first request after a pause may take ~1s to wake.
 
-## 🏗️ Architecture
+## Architecture
 
-### Tech Stack
+**Stack:** Next.js 16 (App Router) + TypeScript, Prisma 5 ORM over PostgreSQL (Neon / Vercel Postgres), Vercel Blob for PDF storage, Tailwind CSS 4.
 
-**Frontend:**
-- **Next.js 16.2.7** (App Router) - React-based full-stack framework
-- **TypeScript** - Type-safe development
-- **Tailwind CSS 4** - Utility-first styling with custom green theme
-
-**Backend:**
-- **Next.js API Routes** - RESTful API endpoints
-- **Prisma 5.22** - Type-safe ORM
-- **PostgreSQL** - relational database (Neon / Vercel Postgres in production)
-- **Vercel Blob** - object storage for PDF uploads (serverless-friendly)
-
-### Project Structure
+A single Next.js codebase hosts both the React UI and the REST API (route handlers under `app/api/`). All approval rules live in one pure, dependency-free module (`lib/workflows.ts`) that the API routes, the UI, and the test suite all import — so enforcement and display can never disagree.
 
 ```
-hakeng-approval-system/
-├── app/
-│   ├── api/                      # API routes
-│   │   ├── requests/             # Document request CRUD
-│   │   │   ├── route.ts          # GET (list), POST (create)
-│   │   │   └── [id]/
-│   │   │       ├── route.ts      # GET, PATCH, DELETE (by ID)
-│   │   │       ├── submit/       # POST - Submit for approval
-│   │   │       ├── approve/      # POST - Approve/Reject
-│   │   │       └── approvers/    # POST, DELETE - Manage approvers
-│   │   ├── upload/               # PDF file upload
-│   │   └── users/                # User listing
-│   ├── requests/                 # Frontend pages
-│   │   ├── page.tsx              # List view (7 columns + filters)
-│   │   ├── new/                  # Create request form
-│   │   └── [id]/                 # Detail view + approval actions
-│   ├── layout.tsx                # Root layout (custom fonts)
-│   └── globals.css               # Custom green theme
-├── prisma/
-│   ├── schema.prisma             # Database schema
-│   ├── seed.ts                   # Test data seeder
-│   └── migrations/               # Database migrations
-├── lib/
-│   └── prisma.ts                 # Prisma client singleton
-└── public/
-    └── uploads/                  # PDF storage
+app/
+  api/
+    requests/            # request CRUD
+      route.ts           # GET (list), POST (create)
+      [id]/
+        route.ts         # GET, PATCH, DELETE
+        submit/          # POST — submit for approval
+        approve/         # POST — approve
+        reject/          # POST — reject
+        approvers/       # POST, DELETE — manage approvers
+    upload/              # PDF upload (Vercel Blob)
+    users/               # user listing
+  requests/              # pages: list, new, [id] detail
+prisma/
+  schema.prisma          # data model
+  seed.ts                # demo data seeder
+lib/
+  workflows.ts           # approval state machine (pure, unit-tested)
+  prisma.ts              # Prisma client singleton
 ```
 
-## 📊 Database Schema
+## Data model
 
-### User
-- `id` (cuid), `email` (unique), `name`, `department`, `createdAt`
+**DocumentRequest** — `title`, `requestType`, `requestedBy` (→ User), `department`, `priority`, `dueDate`, `externalPartyName`, `externalPartyContact` (email or WhatsApp), `pdfPath`, `status`, `remarks`, timestamps.
 
-### DocumentRequest (11 fields)
-- `id` (cuid)
-- `title` - Request title
-- `requestType` - Enum: "Internal Approval", "Client Submission", "Contract Review", "Signature Request"
-- `requestedById` - FK to User
-- `department` - Department name
-- `priority` - Enum: "Low", "Medium", "High"
-- `dueDate` - Target completion date
-- `externalPartyName` - Optional: external company/person
-- `externalPartyContact` - Optional: email or WhatsApp
-- `pdfPath` - Uploaded PDF file path
-- `status` - Enum: "Draft", "Pending Approval", "Approved", "Rejected"
-- `remarks` - Optional notes
-- `createdAt`, `updatedAt`
+**Approver** — `documentRequest` (→ DocumentRequest, cascade delete), `approverName`, `approverEmail`, `role` (Reviewer / Approver / Signatory), `sequence`, `status` (Pending / Approved / Rejected), `comments`, `actionDate`. A unique constraint on `(documentRequestId, sequence)` prevents duplicate positions.
 
-### Approver (8 fields) - Child of DocumentRequest
-- `id` (cuid)
-- `documentRequestId` - FK to DocumentRequest (cascade delete)
-- `approverName` - Approver full name
-- `approverEmail` - Approver email address
-- `role` - Enum: "Reviewer", "Approver", "Signatory"
-- `sequence` - Order in approval chain (1, 2, 3, ...)
-- `status` - Enum: "Pending", "Approved", "Rejected"
-- `comments` - Optional feedback
-- `actionDate` - Timestamp of approval/rejection
-- `createdAt`
+## Setup
 
-**Unique constraint:** (documentRequestId, sequence) - ensures no duplicate sequences
+Requires Node.js 20+.
 
-## 🚀 Setup Instructions
+```bash
+git clone <repository-url>
+cd hakeng-approval-system
+npm install
+```
 
-### Prerequisites
+Set `DATABASE_URL` in `.env` (copy from `.env.example`) to any PostgreSQL instance — a free Neon database works:
 
-- **Node.js 20+** (LTS recommended)
-- **npm** or **pnpm**
+```
+DATABASE_URL="postgresql://user:password@host:5432/hakeng?schema=public"
+# Optional, only to test live PDF upload:
+# BLOB_READ_WRITE_TOKEN="vercel_blob_rw_..."
+```
 
-### Installation
+Create the tables, seed demo data, and run:
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd hakeng-approval-system
-   ```
+```bash
+npx prisma generate
+npx prisma db push
+npm run db:seed
+npm run dev
+```
 
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
+Then open http://localhost:3000.
 
-3. **Set up environment variables** (copy `.env.example` → `.env`)
-   ```bash
-   # Point at any PostgreSQL instance (a free Neon database or local Docker):
-   DATABASE_URL="postgresql://user:password@host:5432/hakeng?schema=public"
-   # Optional locally (only needed to test PDF upload): a Vercel Blob token.
-   # BLOB_READ_WRITE_TOKEN="vercel_blob_rw_..."
-   ```
-
-4. **Initialize database**
-   ```bash
-   # Generate Prisma client
-   npx prisma generate
-
-   # Create the tables from the schema
-   npx prisma db push
-
-   # Seed 3 users + 4 demo requests (one per status)
-   npm run db:seed
-   ```
-
-5. **Start development server**
-   ```bash
-   npm run dev
-   ```
-   
-   Open [http://localhost:3000](http://localhost:3000)
-
-### Test Users
-
-The seed script creates 3 test users:
+### Seeded users
 
 | Name | Email | Department |
 |------|-------|------------|
@@ -168,239 +97,78 @@ The seed script creates 3 test users:
 | Mohammed Al-Otaibi | mohammed.alotaibi@hakeng.sa | Finance |
 | Khalid Al-Harbi | khalid.alharbi@hakeng.sa | Management |
 
-## 🎨 Custom Theme
+## How the core pieces work
 
-The application uses a **custom green theme** based on oklch color space:
+### Sequential approval
 
-- **Primary green**: `oklch(0.5234 0.1347 144.1672)` (#3f8f5d)
-- **Monospace fonts**: Montserrat (sans), Merriweather (serif), Source Code Pro (mono)
-- **Dark mode support**: Automatic system preference detection
+The guard is a pure function in `lib/workflows.ts` (`canActOnApproval`), applied by the approve/reject routes. An approver may act only if the request is pending, they are an approver who hasn't acted yet, and no earlier-sequence approver is still pending:
 
-Theme is defined in `app/globals.css` and applied via Tailwind CSS.
-
-## 🔑 Key Features & Implementation
-
-### 1. Sequential Approval Logic (CRITICAL)
-
-**Requirement:** Approvers must approve in sequence (1 → 2 → 3). Out-of-sequence approvals are blocked.
-
-**Implementation:**
-
-**Backend** — the guard is a pure, unit-tested function in `lib/workflows.ts` (`canActOnApproval`), applied by `app/api/requests/[id]/approve/route.ts`:
 ```typescript
-// lib/workflows.ts — only the lowest-sequence Pending approver may act
 const priorPending = approvers.find(
   (a) => a.sequence < approver.sequence && a.status === 'Pending'
 )
-
 if (priorPending) {
   return {
     allowed: false,
-    code: 403, // forbidden — not this approver's turn
+    code: 403,
     error: `It is not your turn to approve. ${priorPending.approverName} (sequence ${priorPending.sequence}) must act first.`,
   }
 }
-
-// app/api/requests/[id]/approve/route.ts — the route applies the guard
-const guard = canActOnApproval(documentRequest.approvers, approverEmail, documentRequest.status)
-if (!guard.allowed) {
-  return NextResponse.json({ success: false, error: guard.error }, { status: guard.code ?? 400 })
-}
 ```
 
-**Frontend** (`app/requests/[id]/page.tsx`):
-- Displays "Next Approver" indicator
-- Shows sequential timeline with status badges
-- Approvers can only act when their turn arrives
+The detail page surfaces the current "Next Approver" and renders the chain as a status timeline. `computeRequestStatus` resolves the request: any rejection → Rejected; all approved → Approved; otherwise still Pending Approval.
 
-### 2. Request Submission Validations
+### Submission validation
 
-Before a request can be submitted (`POST /api/requests/[id]/submit`):
-- ✅ Status must be "Draft"
-- ✅ PDF must be uploaded
-- ✅ At least one approver assigned
-- ✅ Approver roles must be valid (Reviewer, Approver, Signatory)
-- ✅ Sequence must be sequential (1, 2, 3, ...) with no gaps
+`POST /api/requests/[id]/submit` checks, server-side, that the request is a Draft, a PDF is attached, at least one approver exists, roles are valid, and the sequence is contiguous from 1 with no gaps or duplicate emails.
 
-### 3. PDF Upload
+### PDF upload
 
-**Endpoint:** `POST /api/upload`
+`POST /api/upload` validates type (PDF only) and size (10 MB), stores the file in Vercel Blob, and returns a public URL saved on the request. The seeded demo requests reference a committed static sample at `/uploads/sample-contract.pdf` so links resolve without uploading.
 
-**Features:**
-- File type validation (PDF only)
-- Size limit: 10MB
-- Unique object key (random suffix to avoid collisions)
-- Storage: **Vercel Blob** (serverless-friendly object store) — returns a public URL saved on the request
-- The seeded demo requests reference a committed static sample at `/uploads/sample-contract.pdf`, so attachment links resolve without any upload
+### Approver management
 
-### 4. Dynamic Approver Management
+While a request is Draft, approvers can be added or removed (`POST` / `DELETE /api/requests/[id]/approvers`), with automatic resequencing. After submission the approver list is locked.
 
-**While in Draft:**
-- Add approvers: `POST /api/requests/[id]/approvers`
-- Remove approvers: `DELETE /api/requests/[id]/approvers?approverId=xxx`
-- Automatic resequencing after removal
-
-**After Submission:** Approver list is locked
-
-### 5. Status Transitions
-
-```
-Draft ──→ [Submit] ──→ Pending Approval
-                              ↓
-                       [All Approve]
-                              ↓
-                          Approved
-
-Pending Approval ──→ [Any Reject] ──→ Rejected
-```
-
-### 6. Filtering & Reporting
-
-**List view filters:**
-- Status (Draft, Pending Approval, Approved, Rejected)
-- Request Type (4 types)
-- Priority (Low, Medium, High)
-- Department (text search)
-
-**7 columns (per PDF Feature 10), plus an Actions link:**
-1. Title (request type shown beneath)
-2. Requested By
-3. Department
-4. Status (color-coded badge)
-5. Current Pending Approver (lowest-sequence approver still "Pending"; shows "N/A" once the request is terminal)
-6. Due Date (overdue dates highlighted in red)
-7. Aging in Days (whole calendar days since creation)
-
-## 📡 API Endpoints
-
-### Document Requests
+## API
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/requests` | List all requests (with filters) |
-| POST | `/api/requests` | Create new request (Draft) |
-| GET | `/api/requests/[id]` | Get single request |
-| PATCH | `/api/requests/[id]` | Update request (Draft only) |
-| DELETE | `/api/requests/[id]` | Delete request (Draft/Rejected only) |
-| POST | `/api/requests/[id]/submit` | Submit request for approval |
-| POST | `/api/requests/[id]/approve` | Approve or reject request |
+| GET | `/api/requests` | List requests (supports status / type / priority / department filters) |
+| POST | `/api/requests` | Create a request (Draft) |
+| GET | `/api/requests/[id]` | Get a request |
+| PATCH | `/api/requests/[id]` | Update a Draft request |
+| DELETE | `/api/requests/[id]` | Delete a Draft/Rejected request |
+| POST | `/api/requests/[id]/submit` | Submit for approval |
+| POST | `/api/requests/[id]/approve` | Approve (current approver) |
+| POST | `/api/requests/[id]/reject` | Reject (current approver) |
+| POST | `/api/requests/[id]/approvers` | Add approver (Draft only) |
+| DELETE | `/api/requests/[id]/approvers?approverId=…` | Remove approver (Draft only) |
+| POST | `/api/upload` | Upload a PDF |
+| GET | `/api/users` | List users |
 
-### Approvers
+## Request report
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/requests/[id]/approvers` | Add approver to request (Draft only) |
-| DELETE | `/api/requests/[id]/approvers?approverId=xxx` | Remove approver (Draft only) |
+The list view shows the seven columns the brief asks for — Title, Requested By, Department, Status, Current Pending Approver, Due Date, Aging in Days — plus overdue highlighting and filters by status, type, priority, and department. The current pending approver and aging are derived at read time from the same helpers the API uses.
 
-### File Upload
+## Tests
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/upload` | Upload PDF file |
-
-### Users
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/users` | List all users |
-
-## 🧪 Testing
-
-### Automated Tests (Vitest)
-
-The core approval state machine in `lib/workflows.ts` is covered by a unit suite
-(**39 tests**) spanning every milestone's exit criteria — sequential enforcement,
-rejection cascade, status resolution, submit validations, and the list-view aging
-/ current-approver derivations.
+The approval state machine in `lib/workflows.ts` has a 39-case unit suite covering sequential enforcement, the rejection cascade, status resolution, submission validation, and the list-view derivations. The rules are pure functions, so the suite runs with no database or server.
 
 ```bash
-npm test          # run once
-npm run test:watch  # watch mode
+npm test       # run once
+npm run build  # production build
 ```
 
-### Build Verification
+## Known limitations (prototype scope)
 
-```bash
-npm run build
-```
+- No authentication — the acting approver is identified by email (mirrors a "click the link in your approval email" flow). Production would derive identity from a session (NextAuth / Entra ID); the guard logic in `lib/workflows.ts` would not change.
+- No email notifications — production would send them (e.g. Resend) when an approver's turn arrives.
+- Single tenant; no real-time updates (the list refetches on navigation).
 
-### Manual Testing Checklist
+## Further reading
 
-1. ✅ Create a draft request with all 11 fields
-2. ✅ Upload a PDF document
-3. ✅ Add 3 approvers with different roles
-4. ✅ Submit request (triggers validation)
-5. ✅ Attempt out-of-sequence approval (should fail)
-6. ✅ Approve in sequence (1 → 2 → 3)
-7. ✅ Verify status changes to "Approved"
-8. ✅ Create another request and reject it
-9. ✅ Test filters on list view
-10. ✅ Test all CRUD operations
-
-## 📚 Case Study Documents
-
-- [PART1_REQUIREMENTS_THINKING.md](./PART1_REQUIREMENTS_THINKING.md) — **Part 1**: clarification questions + assumptions.
-- [PART3_ERP_ANSWERS.md](./PART3_ERP_ANSWERS.md) — **Part 3**: Frappe/ERPNext conceptual answers.
-- [DESIGN_DECISIONS.md](./DESIGN_DECISIONS.md) — the **why** behind each architectural choice.
-- [ASSUMPTIONS.md](./ASSUMPTIONS.md) — requirement interpretations, tradeoffs, and constraints.
-
-## 📝 Design Decisions & Assumptions
-
-- [DESIGN_DECISIONS.md](./DESIGN_DECISIONS.md) — the **why** behind each architectural choice.
-- [ASSUMPTIONS.md](./ASSUMPTIONS.md) — requirement interpretations, tradeoffs, and constraints.
-
-## 🔗 ERP / Frappe Thinking (Part 3)
-
-See [PART3_ERP_ANSWERS.md](./PART3_ERP_ANSWERS.md) — answers to all six conceptual questions in Frappe/ERPNext terms (module mapping, admin configuration, permissions matrix, server-side validations, audit trail, and DocType/workflow/hook code samples).
-
-## ⏱️ Development Timeline
-
-**Time spent:** ~4.5 hours
-
-- **M1 - Setup & Schema** (45 min): Next.js setup, Prisma schema, migrations, seed
-- **M2 - API Layer** (60 min): 8 RESTful endpoints with validations
-- **M3 - Sequential Logic** (45 min): Core approval enforcement logic
-- **M4 - Frontend Core** (60 min): List view, create form, approver management
-- **M5 - Frontend Approvals** (45 min): Detail view, approve/reject UI
-- **M6 - Documentation** (45 min): ERP answers, README, assumptions
-
-## 🚧 Known Limitations (Prototype Scope)
-
-1. **No Authentication**: Simplified user model (email-based identification)
-2. **No Email Notifications**: Would use Resend or SendGrid in production
-3. **Single Tenant**: Multi-company support designed but not implemented
-4. **No Real-time Updates**: Would use WebSockets or polling in production
-
-## 🎯 Production Readiness Checklist
-
-To make this production-ready:
-
-- [ ] Implement authentication (NextAuth.js or Clerk)
-- [ ] Add email notifications (Resend/SendGrid)
-- [ ] Migrate to PostgreSQL/MySQL
-- [ ] Use S3/R2 for file storage
-- [ ] Add comprehensive test suite (Jest + Playwright)
-- [ ] Implement audit logging
-- [ ] Add rate limiting
-- [ ] Set up monitoring (Sentry, LogRocket)
-- [ ] Add search functionality (Algolia/Meilisearch)
-- [ ] Implement real-time updates (Pusher/Socket.io)
-- [ ] Add multi-company support
-- [ ] Deploy to Vercel/AWS
-
-## 📄 License
-
-Proprietary - HAK Engineering Case Study
-
-## 👤 Author
-
-**Candidate Submission** for HAK Engineering Full Stack Developer Position
-
----
-
-**Thank you for reviewing this submission!** 🙏
-
-For questions or clarifications, please refer to:
-- [DESIGN_DECISIONS.md](./DESIGN_DECISIONS.md) - Architectural rationale
-- [ASSUMPTIONS.md](./ASSUMPTIONS.md) - Requirement interpretations & tradeoffs
-- [PART3_ERP_ANSWERS.md](./PART3_ERP_ANSWERS.md) - Frappe/ERPNext conceptual answers
+- [PART1_REQUIREMENTS_THINKING.md](./PART1_REQUIREMENTS_THINKING.md) — clarification questions and assumptions
+- [PART3_ERP_ANSWERS.md](./PART3_ERP_ANSWERS.md) — ERP / Frappe mapping
+- [DESIGN_DECISIONS.md](./DESIGN_DECISIONS.md) — the reasoning behind each choice
+- [ASSUMPTIONS.md](./ASSUMPTIONS.md) — requirement interpretations and tradeoffs

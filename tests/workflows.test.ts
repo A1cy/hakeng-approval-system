@@ -22,10 +22,9 @@ function makeApprovers(statuses: string[]): ApproverLike[] {
 }
 
 // ===========================================================================
-// M3 — Sequential Approval Logic (CRITICAL milestone)
-// Maps to Required Features 6 & 7
+// Sequential approval enforcement
 // ===========================================================================
-describe('M3: Sequential approval enforcement (Feature 6 & 7)', () => {
+describe('Sequential approval enforcement', () => {
   it('A1 (sequence 1) CAN act when the request is freshly submitted', () => {
     const approvers = makeApprovers(['Pending', 'Pending', 'Pending'])
     const guard = canActOnApproval(approvers, 'approver1@hakeng.com', 'Pending Approval')
@@ -83,9 +82,9 @@ describe('M3: Sequential approval enforcement (Feature 6 & 7)', () => {
 })
 
 // ===========================================================================
-// M5 — Status resolution (Features 8 & 9)
+// Request status resolution
 // ===========================================================================
-describe('M5: Request status resolution (Feature 8 & 9)', () => {
+describe('Request status resolution', () => {
   it('Single approver approves → Approved', () => {
     const after = makeApprovers(['Approved'])
     expect(computeRequestStatus(after)).toBe('Approved')
@@ -117,9 +116,9 @@ describe('M5: Request status resolution (Feature 8 & 9)', () => {
 })
 
 // ===========================================================================
-// M4 — List-view derived data (Feature 10e, 10g)
+// List-view derived data
 // ===========================================================================
-describe('M4: List-view helpers (Feature 10)', () => {
+describe('List-view helpers', () => {
   it('getCurrentPendingApprover returns lowest-sequence Pending approver', () => {
     const approvers = makeApprovers(['Approved', 'Pending', 'Pending'])
     const current = getCurrentPendingApprover(approvers)
@@ -160,9 +159,9 @@ describe('M4: List-view helpers (Feature 10)', () => {
 })
 
 // ===========================================================================
-// M2 — Submit validations (Feature 5)
+// Submission validation
 // ===========================================================================
-describe('M2: Submission validation (Feature 5)', () => {
+describe('Submission validation', () => {
   const validApprovers = makeApprovers(['Pending', 'Pending'])
 
   it('Valid Draft with PDF + approvers passes', () => {
@@ -225,9 +224,9 @@ describe('M2: Submission validation (Feature 5)', () => {
 })
 
 // ===========================================================================
-// M2 — Field validations on create
+// Field validations on create
 // ===========================================================================
-describe('M2: Field validation on create', () => {
+describe('Field validation on create', () => {
   const now = new Date('2026-06-09T12:00:00Z')
 
   it('Valid fields pass', () => {
@@ -313,7 +312,6 @@ describe('isValidEmail', () => {
 
 // ===========================================================================
 // Full lifecycle simulation — end-to-end sequential walk without a DB
-// Maps to the plan's verification protocol (lines 120-126)
 // ===========================================================================
 describe('End-to-end lifecycle simulation', () => {
   it('Happy path: 3 approvers approve in sequence → Approved', () => {
