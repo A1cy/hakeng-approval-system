@@ -56,8 +56,11 @@ export default function RequestDetailPage() {
   const formatDateTime = (d: string) =>
     new Date(d).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 
-  const openApprovalModal = (action: 'Approved' | 'Rejected') => {
+  const openApprovalModal = (action: 'Approved' | 'Rejected', prefillEmail?: string) => {
     setActionType(action)
+    // One-click "act as" — prefill the current pending approver's email so the
+    // reviewer doesn't have to copy it. Still editable in the modal.
+    setApproverEmail(prefillEmail ?? '')
     setShowApprovalModal(true)
   }
 
@@ -206,12 +209,12 @@ export default function RequestDetailPage() {
                 </div>
               )}
               <div className="flex flex-wrap gap-3">
-                <button onClick={() => openApprovalModal('Approved')} disabled={actionLoading}
+                <button onClick={() => openApprovalModal('Approved', nextPending?.approverEmail)} disabled={actionLoading}
                   className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:brightness-110 active:scale-[0.98] disabled:opacity-50">
                   <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                  Approve
+                  {nextPending ? `Approve as ${nextPending.approverName.split(' ')[0]}` : 'Approve'}
                 </button>
-                <button onClick={() => openApprovalModal('Rejected')} disabled={actionLoading}
+                <button onClick={() => openApprovalModal('Rejected', nextPending?.approverEmail)} disabled={actionLoading}
                   className="inline-flex items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/5 px-5 py-2.5 text-sm font-semibold text-destructive transition hover:bg-destructive/10 active:scale-[0.98] disabled:opacity-50">
                   <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" /></svg>
                   Reject
@@ -229,6 +232,10 @@ export default function RequestDetailPage() {
                   className="rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:brightness-110 active:scale-[0.98] disabled:opacity-50">
                   Submit for approval
                 </button>
+                <Link href={`/requests/${request.id}/edit`}
+                  className="rounded-lg border border-border bg-background/50 px-5 py-2.5 text-sm font-semibold text-foreground transition hover:bg-muted/50 active:scale-[0.98]">
+                  Edit draft
+                </Link>
                 <button onClick={handleDeleteRequest} disabled={actionLoading}
                   className="rounded-lg border border-destructive/40 bg-destructive/5 px-5 py-2.5 text-sm font-semibold text-destructive transition hover:bg-destructive/10 active:scale-[0.98] disabled:opacity-50">
                   Delete draft
@@ -303,6 +310,11 @@ export default function RequestDetailPage() {
                   ? 'Confirm your approval to advance the chain.'
                   : 'Rejecting will mark the entire request as Rejected.'}
               </p>
+              {nextPending && approverEmail === nextPending.approverEmail && (
+                <div className="mt-4 rounded-lg bg-primary/8 p-2.5 text-xs text-foreground ring-1 ring-primary/20">
+                  Acting as <span className="font-semibold">{nextPending.approverName}</span> ({nextPending.role}, step {nextPending.sequence}) — the current approver. Change the email below to act as someone else.
+                </div>
+              )}
               <div className="mt-5 space-y-4">
                 <label className="block">
                   <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-muted-foreground">Your email</span>

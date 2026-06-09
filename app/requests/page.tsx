@@ -181,7 +181,42 @@ export default function RequestsPage() {
             </Link>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+            {/* Mobile: stacked cards (the wide table would force horizontal scroll) */}
+            <ul className="divide-y divide-border/40 md:hidden">
+              {requests.map((r) => {
+                const pending = r.status === 'Pending Approval' ? getCurrentPendingApprover(r.approvers) : null
+                const aging = calculateAgingDays(r.createdAt, new Date())
+                const overdue = new Date(r.dueDate) < new Date() && !['Approved', 'Rejected'].includes(r.status)
+                return (
+                  <li key={r.id}>
+                    <Link href={`/requests/${r.id}`} className="block p-4 transition active:bg-primary/[0.06]">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="truncate font-medium text-foreground">{r.title}</div>
+                          <div className="mt-0.5 text-xs text-muted-foreground">{r.requestType} · {r.requestedBy.name}</div>
+                        </div>
+                        <StatusBadge status={r.status} />
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                        <div><span className="text-muted-foreground">Dept: </span><span className="text-foreground">{r.department}</span></div>
+                        <div className="tnum"><span className="text-muted-foreground">Aging: </span><span className="text-foreground">{aging}d</span></div>
+                        <div className="col-span-2">
+                          <span className="text-muted-foreground">Current approver: </span>
+                          <span className="text-foreground">{pending ? `${pending.approverName} · step ${pending.sequence}` : '—'}</span>
+                        </div>
+                        <div className={`tnum col-span-2 ${overdue ? 'font-semibold text-destructive' : ''}`}>
+                          <span className="text-muted-foreground">Due: </span>{formatDate(r.dueDate)}{overdue && ' · overdue'}
+                        </div>
+                      </div>
+                    </Link>
+                  </li>
+                )
+              })}
+            </ul>
+
+            {/* Desktop: full report table */}
+            <div className="hidden overflow-x-auto md:block">
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="border-b border-border/70 text-left">
@@ -239,7 +274,8 @@ export default function RequestsPage() {
                 })}
               </tbody>
             </table>
-          </div>
+            </div>
+          </>
         )}
       </motion.div>
 
