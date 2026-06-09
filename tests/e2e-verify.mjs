@@ -1,5 +1,5 @@
 // End-to-end verification against the RUNNING dev server (no mocks).
-// Exercises the plan's verification protocol (lines 120-126).
+// Walks the full request lifecycle: create → submit → sequential approve/reject.
 // Run with: node tests/e2e-verify.mjs   (dev server must be up on :3000)
 
 const BASE = 'http://localhost:3000'
