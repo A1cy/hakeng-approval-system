@@ -138,11 +138,11 @@ and tested.
 `prisma/seed.ts` seeds 3 users **and** 4 Document Requests covering every status
 (Draft, Pending Approval mid-flow, Approved, Rejected) with realistic approver
 chains. This makes the list/report view and the approval timeline populated the
-moment a reviewer runs `npm run db:seed` — no manual data entry needed to
-evaluate the workflow — and is what the README screenshots are captured from. The
-seed is idempotent (it clears existing requests first) and approver emails reuse
-the seeded users' emails so a reviewer can immediately act as the current pending
-approver. A small valid placeholder PDF ships at
+moment a reviewer runs `npm run db:seed` (or opens the live demo) — no manual data
+entry needed to evaluate the workflow. The seed is idempotent (it clears existing
+requests and users first) and approver emails reuse the seeded users' emails so a
+reviewer can immediately act as the current pending approver. A small valid
+placeholder PDF ships at
 `public/uploads/sample-contract.pdf` so the attachment link resolves.
 
 ---

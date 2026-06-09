@@ -15,21 +15,21 @@ This system implements a **sequential approval workflow** for document requests 
 - ✅ **4 workflow states**: Draft, Pending Approval, Approved, Rejected
 - ✅ **Comprehensive reporting** with filters and status tracking
 
-## 📸 Screenshots
+## 🌐 Live Demo
 
-> Captured from the running app against the demo seed data (`npm run db:seed`).
+**https://hakeng-approval-system.vercel.app** — deployed on Vercel with a Neon
+Postgres database, pre-seeded with demo data (3 users + 4 requests covering every
+status). Try the full workflow live:
 
-**Document Requests — list / report view** (all 7 PDF columns: Title, Requested By, Department, Status, Current Pending Approver, Due Date, Aging; plus filters):
+1. Open a **Pending Approval** request (e.g. *Q3 Vendor Contract Review*).
+2. Approve as the **wrong** approver → blocked ("not your turn").
+3. Approve as the current approver → the chain advances; approve to the end → **Approved**.
 
-![List view](./screenshots/01-list-view.png)
+Demo approver emails: `abdullah.alqahtani@hakeng.sa`, `mohammed.alotaibi@hakeng.sa`,
+`khalid.alharbi@hakeng.sa`.
 
-**Request detail — mid-approval** (sequential timeline: approver 1 Approved, approver 2 is the current "Next Approver"; rejection/approval actions gated to the current approver):
-
-![Detail view, pending approval](./screenshots/02-detail-pending-approval.png)
-
-**Create request form** (all fields, PDF upload, sequential approver builder):
-
-![Create request form](./screenshots/03-create-request-form.png)
+> Neon's free tier auto-suspends when idle, so the first request after a pause may
+> take ~1s to wake.
 
 ## 🏗️ Architecture
 
