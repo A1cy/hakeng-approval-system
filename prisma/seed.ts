@@ -12,27 +12,23 @@ import { prisma } from '../lib/prisma'
  * existing demo requests first, then recreates them.
  */
 async function main() {
-  // --- Users (upserted; safe to re-run) ----------------------------------
+  // --- Reset for idempotency: clear requests (FK) then ALL users, so stale
+  //     identities from previous seeds never linger -------------------------
+  await prisma.documentRequest.deleteMany({})
+  await prisma.user.deleteMany({})
+
+  // --- Users (Saudi identities) ------------------------------------------
   const [abdullah, mohammed, khalid] = await Promise.all([
-    prisma.user.upsert({
-      where: { email: 'abdullah.alqahtani@hakeng.sa' },
-      update: { name: 'Abdullah Al-Qahtani', department: 'Engineering' },
-      create: { email: 'abdullah.alqahtani@hakeng.sa', name: 'Abdullah Al-Qahtani', department: 'Engineering' },
+    prisma.user.create({
+      data: { email: 'abdullah.alqahtani@hakeng.sa', name: 'Abdullah Al-Qahtani', department: 'Engineering' },
     }),
-    prisma.user.upsert({
-      where: { email: 'mohammed.alotaibi@hakeng.sa' },
-      update: { name: 'Mohammed Al-Otaibi', department: 'Finance' },
-      create: { email: 'mohammed.alotaibi@hakeng.sa', name: 'Mohammed Al-Otaibi', department: 'Finance' },
+    prisma.user.create({
+      data: { email: 'mohammed.alotaibi@hakeng.sa', name: 'Mohammed Al-Otaibi', department: 'Finance' },
     }),
-    prisma.user.upsert({
-      where: { email: 'khalid.alharbi@hakeng.sa' },
-      update: { name: 'Khalid Al-Harbi', department: 'Management' },
-      create: { email: 'khalid.alharbi@hakeng.sa', name: 'Khalid Al-Harbi', department: 'Management' },
+    prisma.user.create({
+      data: { email: 'khalid.alharbi@hakeng.sa', name: 'Khalid Al-Harbi', department: 'Management' },
     }),
   ])
-
-  // --- Reset demo requests for idempotency (cascade deletes approvers) ----
-  await prisma.documentRequest.deleteMany({})
 
   const SAMPLE_PDF = '/uploads/sample-contract.pdf'
   const day = (offset: number) => new Date(Date.now() + offset * 24 * 60 * 60 * 1000)
